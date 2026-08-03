@@ -1,8 +1,8 @@
 import "../styles.css";
 import { futureValue, inflationAdjusted } from "./domain/calculations.ts";
-import { createStoredDocument, createUserEnteredEvent } from "./domain/factories.ts";
+import { createConfirmedMedicalEvent, createStoredDocument, createUserEnteredEvent } from "./domain/factories.ts";
 import type { DocumentCategory, LifeEvent, LifeEventCategory, RetirementPlan, StoredSourceDocument } from "./domain/models.ts";
-import { normalizeRetirementPlan } from "./domain/validation.ts";
+import { normalizeRetirementPlan, validateDocumentFile } from "./domain/validation.ts";
 import { IndexedDbLifeOSRepository } from "./storage/indexed-db-repository.ts";
 
 const defaultPlan: RetirementPlan = { currentAge: 30, retirementAge: 60, currentSavings: 0, monthlyContribution: 5000, expectedAnnualReturn: 10, expectedInflation: 6, desiredMonthlyExpense: 50000 };
@@ -25,7 +25,7 @@ function reportError(error: unknown): void { notify(error instanceof Error ? err
 
 function eventMarkup(events: LifeEvent[]): string {
   if (!events.length) return '<div class="empty">No events yet. Record the first trusted memory.</div>';
-  return `<div class="event-list">${events.map(event => `<article class="event-row"><div class="event-icon ${escapeHtml(event.category)}">${escapeHtml(categoryLabels[event.category]?.[0] || "L")}</div><div class="event-body"><div><strong>${escapeHtml(event.title)}</strong><span>${formatDate(event.occurredAt)}</span></div>${event.description ? `<p>${escapeHtml(event.description)}</p>` : ""}<small>Source: ${escapeHtml(event.source.label)} · ${event.verificationStatus === "user_confirmed" ? "Confirmed" : "Unverified"}</small></div><button class="danger-text delete-event" data-id="${escapeHtml(event.id)}">Delete</button></article>`).join("")}</div>`;
+  return `<div class="event-list">${events.map(event => `<article class="event-row"><div class="event-icon ${escapeHtml(event.category)}">${escapeHtml(categoryLabels[event.category]?.[0] || "L")}</div><div class="event-body"><div><strong>${escapeHtml(event.title)}</strong><span>${formatDate(event.occurredAt)}</span></div>${event.description ? `<p>${escapeHtml(event.description)}</p>` : ""}<small>Source: ${escapeHtml(event.source.label)} · ${event.verificationStatus === "user_confirmed" ? "Confirmed" : "Unverified"}${event.source.documentId ? ` · <button class="text-button open-doc" data-id="${escapeHtml(event.source.documentId)}">Open source</button>` : ""}</small></div><button class="danger-text delete-event" data-id="${escapeHtml(event.id)}">Delete</button></article>`).join("")}</div>`;
 }
 
 function renderEvents(): void {
@@ -55,8 +55,21 @@ function renderFinance(): void {
 
 function renderDocuments(): void {
   element("#metric-docs").textContent = String(state.documents.length); element("#doc-count").textContent = `${state.documents.length} files`;
-  element("#document-list").innerHTML = state.documents.length ? `<div class="document-list">${state.documents.map(document => `<div class="document-row"><div><strong>${escapeHtml(document.title)}</strong><span>${escapeHtml(document.filename)} · ${(document.size/1024).toFixed(1)} KB</span></div><div><button class="text-button open-doc" data-id="${escapeHtml(document.id)}">Open</button><button class="danger-text delete-doc" data-id="${escapeHtml(document.id)}">Delete</button></div></div>`).join("")}</div>` : '<div class="empty">No source documents saved yet.</div>';
+  element("#document-list").innerHTML = state.documents.length ? `<div class="document-list">${state.documents.map(document => `<div class="document-row"><div><strong>${escapeHtml(document.title)}</strong><span>${escapeHtml(document.filename)} · ${(document.size/1024).toFixed(1)} KB · ${document.extractionStatus === "reviewed" ? "Confirmed" : "Needs review"}</span></div><div><button class="text-button open-doc" data-id="${escapeHtml(document.id)}">Open</button>${document.category === "health" && document.extractionStatus !== "reviewed" ? `<button class="text-button review-doc" data-id="${escapeHtml(document.id)}">Review</button>` : ""}<button class="danger-text delete-doc" data-id="${escapeHtml(document.id)}">Delete</button></div></div>`).join("")}</div>` : '<div class="empty">No source documents saved yet.</div>';
 }
+
+function showMedicalReview(document: StoredSourceDocument): void {
+  const panel = element<HTMLElement>("#medical-review-panel");
+  const form = element<HTMLFormElement>("#medical-review-form");
+  form.reset();
+  form.elements.namedItem("documentId") && ((form.elements.namedItem("documentId") as HTMLInputElement).value = document.id);
+  (form.elements.namedItem("title") as HTMLInputElement).value = document.title;
+  (form.elements.namedItem("occurredOn") as HTMLInputElement).value = document.documentDate;
+  panel.classList.remove("hidden");
+  panel.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function hideMedicalReview(): void { element("#medical-review-panel").classList.add("hidden"); }
 
 function renderAll(): void { renderEvents(); renderFinance(); renderDocuments(); }
 function switchView(view: string): void { document.querySelectorAll(".view").forEach(node => node.classList.toggle("active", node.id === `view-${view}`)); document.querySelectorAll<HTMLElement>(".nav-button").forEach(button => button.classList.toggle("active", button.dataset.view === view)); element("#page-title").textContent = view === "overview" ? "Good morning. Your life, in one place." : view[0]?.toUpperCase() + view.slice(1); }
@@ -84,7 +97,24 @@ element<HTMLFormElement>("#finance-form").addEventListener("input", event => {
 
 element<HTMLFormElement>("#vault-form").addEventListener("submit", async event => {
   event.preventDefault(); const form = event.currentTarget as HTMLFormElement; const data = new FormData(form); const file = data.get("file"); if (!(file instanceof File) || !file.size) return;
-  try { const item = createStoredDocument({ title: String(data.get("title")), category: String(data.get("category")) as DocumentCategory, documentDate: String(data.get("occurredOn")), file }, uuid(), new Date().toISOString()); await repository.putDocument(item); state.documents = await repository.listDocuments(); form.reset(); setDefaultDates(); renderDocuments(); notify("Document saved inside this browser only."); } catch (error) { reportError(error); }
+  try { const errors = validateDocumentFile(file); if (errors.length) throw new Error(errors.join(" ")); const item = createStoredDocument({ title: String(data.get("title")), category: String(data.get("category")) as DocumentCategory, documentDate: String(data.get("occurredOn")), file }, uuid(), new Date().toISOString()); await repository.putDocument(item); state.documents = await repository.listDocuments(); form.reset(); setDefaultDates(); renderDocuments(); notify("Document saved inside this browser only."); } catch (error) { reportError(error); }
+});
+
+element("#cancel-review").addEventListener("click", hideMedicalReview);
+element<HTMLFormElement>("#medical-review-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const form = event.currentTarget as HTMLFormElement;
+  const data = new FormData(form);
+  const document = state.documents.find(item => item.id === String(data.get("documentId")));
+  if (!document) return reportError(new Error("The source document could not be found."));
+  try {
+    const item = createConfirmedMedicalEvent({ title: String(data.get("title")), occurredAt: String(data.get("occurredOn")), provider: String(data.get("provider")), facts: String(data.get("facts")) }, document, uuid(), new Date().toISOString());
+    const reviewedDocument: StoredSourceDocument = { ...document, extractionStatus: "reviewed" };
+    await repository.confirmMedicalDocument(reviewedDocument, item);
+    state.events.push(item);
+    state.documents = state.documents.map(current => current.id === reviewedDocument.id ? reviewedDocument : current);
+    hideMedicalReview(); renderEvents(); renderDocuments(); notify("Confirmed medical event linked to its source document.");
+  } catch (error) { reportError(error); }
 });
 
 document.body.addEventListener("click", async event => {
@@ -92,6 +122,7 @@ document.body.addEventListener("click", async event => {
   try {
     const deleteEvent = target.closest<HTMLElement>(".delete-event"); if (deleteEvent?.dataset.id) { await repository.deleteEvent(deleteEvent.dataset.id); state.events = state.events.filter(item => item.id !== deleteEvent.dataset.id); renderEvents(); }
     const openDoc = target.closest<HTMLElement>(".open-doc"); if (openDoc) { const document = state.documents.find(item => item.id === openDoc.dataset.id); if (document) { const url = URL.createObjectURL(document.blob); window.open(url, "_blank", "noopener,noreferrer"); setTimeout(() => URL.revokeObjectURL(url), 60000); } }
+    const reviewDoc = target.closest<HTMLElement>(".review-doc"); if (reviewDoc) { const document = state.documents.find(item => item.id === reviewDoc.dataset.id); if (document) showMedicalReview(document); }
     const deleteDoc = target.closest<HTMLElement>(".delete-doc"); if (deleteDoc?.dataset.id) { await repository.deleteDocument(deleteDoc.dataset.id); state.documents = await repository.listDocuments(); renderDocuments(); }
   } catch (error) { reportError(error); }
 });

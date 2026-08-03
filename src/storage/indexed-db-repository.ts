@@ -101,6 +101,21 @@ export class IndexedDbLifeOSRepository implements LifeOSRepository {
   }
 
   async putDocument(document: StoredSourceDocument): Promise<void> { await this.write(DOCUMENTS, store => store.put(document)); }
+  async confirmMedicalDocument(document: StoredSourceDocument, event: LifeEvent): Promise<void> {
+    const errors = validateLifeEvent(event);
+    if (errors.length) throw new Error(errors.join(" "));
+    if (event.source.type !== "source_document" || event.source.documentId !== document.id) {
+      throw new Error("The medical event must reference the document being confirmed.");
+    }
+    await new Promise<void>((resolve, reject) => {
+      const tx = this.database().transaction([DOCUMENTS, EVENTS], "readwrite");
+      tx.objectStore(DOCUMENTS).put(document);
+      tx.objectStore(EVENTS).put(event);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error ?? new Error("Could not confirm the medical document."));
+      tx.onabort = () => reject(tx.error ?? new Error("Medical document confirmation was aborted."));
+    });
+  }
   async deleteDocument(id: string): Promise<void> { await this.write(DOCUMENTS, store => store.delete(id)); }
 
   private async write(storeName: string, action: (store: IDBObjectStore) => void): Promise<void> {

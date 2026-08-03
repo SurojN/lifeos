@@ -1,5 +1,8 @@
 import type { LifeEvent, RetirementPlan } from "./models.ts";
 
+export const MAX_DOCUMENT_SIZE_BYTES = 10 * 1024 * 1024;
+export const ALLOWED_DOCUMENT_TYPES = ["application/pdf", "image/jpeg", "image/png"] as const;
+
 export function isIsoDate(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
 }
@@ -19,4 +22,14 @@ export function normalizeRetirementPlan(plan: RetirementPlan): RetirementPlan {
   return Object.fromEntries(
     Object.entries(plan).map(([key, value]) => [key, Number.isFinite(value) && value >= 0 ? value : 0]),
   ) as unknown as RetirementPlan;
+}
+
+export function validateDocumentFile(file: File): string[] {
+  const errors: string[] = [];
+  if (!file.size) errors.push("Choose a non-empty document.");
+  if (file.size > MAX_DOCUMENT_SIZE_BYTES) errors.push("Document must be 10 MB or smaller.");
+  if (!(ALLOWED_DOCUMENT_TYPES as readonly string[]).includes(file.type)) {
+    errors.push("Document must be a PDF, JPEG, or PNG file.");
+  }
+  return errors;
 }

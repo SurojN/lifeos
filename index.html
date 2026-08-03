@@ -91,10 +91,22 @@
           <article class="panel"><p class="eyebrow">PRIVATE DOCUMENT VAULT</p><h3>Add a source document</h3><form class="stack" id="vault-form">
             <label>Document title<input name="title" required placeholder="e.g. Prescription — August 2026" /></label>
             <div class="form-grid"><label>Category<select name="category"><option value="health">Health</option><option value="finance">Finance</option><option value="travel">Travel</option><option value="education">Learning</option><option value="identity">Identity</option><option value="general">Other</option></select></label><label>Document date<input type="date" name="occurredOn" required /></label></div>
-            <label>File<input type="file" name="file" required /></label>
+            <label>File<input type="file" name="file" accept="application/pdf,image/jpeg,image/png" required /></label>
             <button class="primary" type="submit">Save locally</button>
-          </form><p class="fine-print">Files remain in this browser's IndexedDB. Clearing browser storage can remove them. Cloud backup and encryption are not implemented yet.</p></article>
+          </form><p class="fine-print">PDF, JPEG, or PNG; maximum 10 MB. Files remain in this browser's IndexedDB. Clearing browser storage can remove them. Cloud backup and encryption are not implemented yet.</p></article>
           <article class="panel"><div class="panel-header"><div><p class="eyebrow">SOURCE LIBRARY</p><h3>Your documents</h3></div><span class="pill" id="doc-count">0 files</span></div><div id="document-list"></div></article>
+        </section>
+        <section class="panel review-panel hidden" id="medical-review-panel">
+          <div class="panel-header"><div><p class="eyebrow">REVIEW BEFORE CONFIRMING</p><h3>Turn this document into a sourced medical event</h3></div><button class="ghost" id="cancel-review" type="button">Cancel</button></div>
+          <div class="warning"><strong>No automatic extraction yet</strong><p>Enter only facts visible in the source document. LifeOS will not diagnose, prescribe, or fill missing information.</p></div>
+          <form class="stack" id="medical-review-form">
+            <input type="hidden" name="documentId" />
+            <div class="form-grid"><label>Event title<input name="title" required /></label><label>Document date<input type="date" name="occurredOn" required /></label></div>
+            <label>Provider or facility (optional)<input name="provider" placeholder="As written on the document" /></label>
+            <label>Confirmed facts<textarea name="facts" rows="6" required placeholder="Transcribe medicines, measurements, or findings exactly as written. Do not infer."></textarea></label>
+            <label class="confirmation"><input type="checkbox" name="confirmed" required /><span>I reviewed these fields against the original document and confirm they are accurate.</span></label>
+            <button class="primary" type="submit">Confirm and add to health timeline</button>
+          </form>
         </section>
       </section>
     </section>

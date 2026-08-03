@@ -1,26 +1,15 @@
-cat > .gitignore <<'EOF'
 # Dependencies
 node_modules/
 
-# Next.js
-.next/
-out/
-
-# Build output
+# Build and test output
 dist/
 coverage/
 
-# Environment and secrets
+# Local environment and secrets
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*.local
 
-# Vercel
+# Editor, tool, and system files
 .vercel/
-
-# System files
 .DS_Store
 *.log
-EOF

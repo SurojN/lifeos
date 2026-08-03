@@ -77,6 +77,19 @@ export interface MedicalRecord {
   createdAt: string;
 }
 
+export interface MedicalReviewInput {
+  title: string;
+  occurredAt: string;
+  provider: string;
+  facts: string;
+}
+
+export interface MedicalEventMetadata {
+  recordType: "medical_document_review";
+  provider?: string;
+  confirmedFacts: string;
+}
+
 export interface FinancialGoal {
   schemaVersion: typeof CURRENT_SCHEMA_VERSION;
   id: string;

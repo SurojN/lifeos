@@ -9,5 +9,6 @@ export interface LifeOSRepository {
   putRetirementPlan(plan: RetirementPlan): Promise<void>;
   listDocuments(): Promise<StoredSourceDocument[]>;
   putDocument(document: StoredSourceDocument): Promise<void>;
+  confirmMedicalDocument(document: StoredSourceDocument, event: LifeEvent): Promise<void>;
   deleteDocument(id: string): Promise<void>;
 }

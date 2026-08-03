@@ -71,6 +71,9 @@ button.full { width: 100%; }
 .document-row { justify-content: space-between; }
 .document-row > div { display: flex; flex-direction: column; gap: 4px; }
 .document-row > div:last-child { flex-direction: row; }
+.review-panel { margin-top: 18px; }
+.confirmation { grid-template-columns: auto 1fr; align-items: start; font-weight: 500; line-height: 1.5; }
+.confirmation input { width: auto; margin-top: 3px; }
 .stack { display: grid; gap: 15px; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 13px; }
 label { display: grid; gap: 7px; color: #425149; font-size: 13px; font-weight: 650; }

@@ -4,6 +4,7 @@ import {
   type DocumentCategory,
   type LifeEvent,
   type LifeEventCategory,
+  type MedicalReviewInput,
   type StoredSourceDocument,
 } from "./models.ts";
 
@@ -54,5 +55,33 @@ export function createStoredDocument(
     extractionStatus: "not_started",
     retentionState: "active",
     blob: input.file,
+  };
+}
+
+export function createConfirmedMedicalEvent(
+  input: MedicalReviewInput,
+  document: StoredSourceDocument,
+  id: string,
+  createdAt: string,
+): LifeEvent {
+  return {
+    schemaVersion: CURRENT_SCHEMA_VERSION,
+    id,
+    userId: LOCAL_OWNER_ID,
+    category: "health",
+    title: input.title.trim(),
+    description: input.facts.trim(),
+    occurredAt: input.occurredAt,
+    createdAt,
+    source: { type: "source_document", documentId: document.id, label: document.title },
+    verificationStatus: "user_confirmed",
+    origin: "user_entered",
+    metadata: {
+      recordType: "medical_document_review",
+      ...(input.provider.trim() ? { provider: input.provider.trim() } : {}),
+      confirmedFacts: input.facts.trim(),
+    },
+    tags: ["medical-document"],
+    relatedEventIds: [],
   };
 }
