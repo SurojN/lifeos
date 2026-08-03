@@ -3,6 +3,8 @@ node_modules/
 
 # Build and test output
 dist/
+.next/
+out/
 coverage/
 
 # Local environment and secrets
@@ -13,3 +15,5 @@ coverage/
 .vercel/
 .DS_Store
 *.log
+*.tsbuildinfo
+src/generated/

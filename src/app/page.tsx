@@ -1,0 +1,9 @@
+import Link from "next/link";
+import { ArrowRight, FileCheck2, LockKeyhole, ShieldCheck } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+
+export default function LandingPage() {
+  return <main className="mx-auto flex min-h-screen max-w-6xl flex-col px-6 py-8"><header className="flex items-center justify-between"><span className="flex items-center gap-2 font-semibold"><ShieldCheck className="size-5 text-primary" />LifeOS</span><Link href="/sign-in" className={cn(buttonVariants({ variant: "outline" }))}>Sign in</Link></header><section className="grid flex-1 items-center gap-12 py-20 lg:grid-cols-[1.2fr_0.8fr]"><div><p className="text-sm font-medium text-primary">Production foundation v0.1</p><h1 className="mt-4 max-w-3xl text-5xl font-semibold tracking-tight sm:text-6xl">Private life records, grounded in their source.</h1><p className="mt-6 max-w-2xl text-lg leading-8 text-muted-foreground">LifeOS is building a calm, user-owned place for verified life information. This early foundation contains no AI extraction, diagnosis, or financial advice.</p><Link href="/sign-in" className={cn(buttonVariants(), "mt-8 gap-2")}>Enter LifeOS <ArrowRight className="size-4" /></Link></div><div className="grid gap-4"><Card><CardHeader><LockKeyhole className="size-5 text-primary" /><CardTitle>Private by design</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">Identity, ownership, and private storage are separated by explicit trust boundaries.</CardContent></Card><Card><CardHeader><FileCheck2 className="size-5 text-primary" /><CardTitle>Source before certainty</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">Future medical records must retain their original evidence and remain unverified until reviewed.</CardContent></Card></div></section></main>;
+}

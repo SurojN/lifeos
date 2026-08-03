@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="LifeOS privacy-first foundation prototype" />
+  <title>LifeOS Foundation</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">L</div><div><strong>LifeOS</strong><span>Foundation v0.2</span></div></div>
+      <nav aria-label="Primary navigation">
+        <button class="nav-button active" data-view="overview">Overview</button>
+        <button class="nav-button" data-view="timeline">Timeline</button>
+        <button class="nav-button" data-view="health">Health</button>
+        <button class="nav-button" data-view="finance">Finance</button>
+        <button class="nav-button" data-view="vault">Vault</button>
+      </nav>
+      <div class="privacy-card"><strong>Local-first prototype</strong><p>No account, cloud, camera, microphone, analytics, bank, hospital, or government integration.</p></div>
+    </aside>
+
+    <section class="content">
+      <header class="topbar">
+        <div><p class="eyebrow">FOUNDER BUILD · V0.2</p><h1 id="page-title">Good morning. Your life, in one place.</h1></div>
+        <div class="top-actions"><button class="secondary" id="export-btn">Export JSON</button><button class="ghost" id="reset-btn">Reset</button></div>
+      </header>
+      <button class="notice hidden" id="notice" type="button"></button>
+
+      <section class="view active" id="view-overview">
+        <section class="hero">
+          <div><p class="eyebrow">TODAY'S FOUNDATION</p><h2>Build trusted memory before intelligent advice.</h2><p>Every future recommendation must point back to a source controlled by the user. This prototype begins with that rule.</p></div>
+          <div class="trust-score"><span>Data sent outside</span><strong>0</strong><small>Everything stays in this browser.</small></div>
+        </section>
+        <section class="metrics">
+          <article><span>Life events</span><strong id="metric-events">0</strong><small>Traceable timeline entries</small></article>
+          <article><span>Health records</span><strong id="metric-health">0</strong><small>No diagnosis or medical advice</small></article>
+          <article><span>Vault files</span><strong id="metric-docs">0</strong><small>Stored in browser IndexedDB</small></article>
+          <article><span>Projected retirement fund</span><strong id="metric-fund">NPR 0</strong><small>Illustration, not financial advice</small></article>
+        </section>
+        <section class="grid-two">
+          <article class="panel"><div class="panel-header"><div><p class="eyebrow">RECENT MEMORY</p><h3>Latest life events</h3></div><button class="text-button" data-go="timeline">Open timeline</button></div><div id="overview-events"></div></article>
+          <article class="panel"><p class="eyebrow">RETIREMENT SNAPSHOT</p><h3 id="years-label">30 years to your target</h3><div class="progress"><span id="progress-bar"></span></div><dl class="summary-list"><div><dt>Future nominal fund</dt><dd id="summary-fund">NPR 0</dd></div><div><dt>Value in today's money</dt><dd id="summary-today">NPR 0</dd></div><div><dt>Illustrative monthly income</dt><dd id="summary-income">NPR 0</dd></div></dl><button class="primary full" data-go="finance">Review assumptions</button></article>
+        </section>
+      </section>
+
+      <section class="view" id="view-timeline">
+        <section class="grid-two align-start">
+          <article class="panel"><p class="eyebrow">NEW MEMORY</p><h3>Record a life event</h3><form class="stack" id="event-form">
+            <label>Title<input name="title" required placeholder="What happened?" /></label>
+            <div class="form-grid"><label>Date<input type="date" name="occurredOn" required /></label><label>Category<select name="category"><option value="general">Personal</option><option value="health">Health</option><option value="finance">Finance</option><option value="travel">Travel</option><option value="education">Learning</option></select></label></div>
+            <label>Source<input name="source" placeholder="Where did this information come from?" /></label>
+            <label>Notes<textarea name="notes" rows="4" placeholder="Add context without making assumptions."></textarea></label>
+            <button class="primary" type="submit">Save event</button>
+          </form></article>
+          <article class="panel"><div class="panel-header"><div><p class="eyebrow">YOUR SOURCED HISTORY</p><h3>Timeline</h3></div><span class="pill" id="event-count">0 events</span></div><div id="timeline-events"></div></article>
+        </section>
+      </section>
+
+      <section class="view" id="view-health">
+        <section class="grid-two align-start">
+          <article class="panel"><p class="eyebrow">NEW MEDICAL MEMORY</p><h3>Add a health record</h3><form class="stack" id="health-form">
+            <label>Record title<input name="title" required placeholder="e.g. Blood report — July 2026" /></label>
+            <label>Date<input type="date" name="occurredOn" required /></label>
+            <label>Source<input name="source" placeholder="Prescription, lab, doctor, or self" /></label>
+            <label>Notes<textarea name="notes" rows="5" placeholder="Record facts only. Do not diagnose."></textarea></label>
+            <button class="primary" type="submit">Save medical record</button>
+          </form></article>
+          <article class="panel"><div class="warning"><strong>Safety boundary</strong><p>LifeOS records and summarizes user-provided information. It must not diagnose, prescribe, or replace qualified medical care.</p></div><div class="panel-header"><div><p class="eyebrow">MEDICAL MEMORY</p><h3>Health timeline</h3></div><span class="pill" id="health-count">0 records</span></div><div id="health-events"></div></article>
+        </section>
+      </section>
+
+      <section class="view" id="view-finance">
+        <section class="grid-two align-start">
+          <article class="panel"><p class="eyebrow">RETIREMENT FOUNDATION</p><h3>Set your assumptions</h3><form id="finance-form" class="form-grid">
+            <label>Current age<input type="number" min="0" name="currentAge" /></label>
+            <label>Retirement age<input type="number" min="0" name="retirementAge" /></label>
+            <label>Current savings (NPR)<input type="number" min="0" name="currentSavings" /></label>
+            <label>Monthly contribution (NPR)<input type="number" min="0" name="monthlyContribution" /></label>
+            <label>Expected annual return (%)<input type="number" min="0" step="0.1" name="expectedAnnualReturn" /></label>
+            <label>Expected inflation (%)<input type="number" min="0" step="0.1" name="expectedInflation" /></label>
+            <label class="wide">Desired monthly expense in today's NPR<input type="number" min="0" name="desiredMonthlyExpense" /></label>
+          </form><p class="fine-print">Educational projection only. Returns, inflation, taxes, fees, regulations, and personal circumstances can differ substantially.</p></article>
+          <article class="panel result-panel"><p class="eyebrow">PROJECTION</p><h3 id="result-fund">NPR 0</h3><p>Estimated nominal retirement fund</p><dl class="summary-list"><div><dt>Time horizon</dt><dd id="result-years">0 years</dd></div><div><dt>Today's purchasing power</dt><dd id="result-today">NPR 0</dd></div><div><dt>Illustrative monthly income</dt><dd id="result-income">NPR 0</dd></div><div><dt>Desired monthly expense</dt><dd id="result-desired">NPR 0</dd></div></dl><div class="warning" id="finance-status"><strong>Review your assumptions</strong><p>This is a sensitivity tool, not a promise or investment recommendation.</p></div></article>
+        </section>
+      </section>
+
+      <section class="view" id="view-vault">
+        <section class="grid-two align-start">
+          <article class="panel"><p class="eyebrow">PRIVATE DOCUMENT VAULT</p><h3>Add a source document</h3><form class="stack" id="vault-form">
+            <label>Document title<input name="title" required placeholder="e.g. Prescription — August 2026" /></label>
+            <div class="form-grid"><label>Category<select name="category"><option value="health">Health</option><option value="finance">Finance</option><option value="travel">Travel</option><option value="education">Learning</option><option value="identity">Identity</option><option value="general">Other</option></select></label><label>Document date<input type="date" name="occurredOn" required /></label></div>
+            <label>File<input type="file" name="file" required /></label>
+            <button class="primary" type="submit">Save locally</button>
+          </form><p class="fine-print">Files remain in this browser's IndexedDB. Clearing browser storage can remove them. Cloud backup and encryption are not implemented yet.</p></article>
+          <article class="panel"><div class="panel-header"><div><p class="eyebrow">SOURCE LIBRARY</p><h3>Your documents</h3></div><span class="pill" id="doc-count">0 files</span></div><div id="document-list"></div></article>
+        </section>
+      </section>
+    </section>
+  </main>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+:root {
+  --background: oklch(0.985 0.004 145);
+  --foreground: oklch(0.21 0.025 155);
+  --card: oklch(1 0 0);
+  --card-foreground: var(--foreground);
+  --primary: oklch(0.38 0.09 157);
+  --primary-foreground: oklch(0.98 0 0);
+  --muted: oklch(0.95 0.009 150);
+  --muted-foreground: oklch(0.49 0.025 155);
+  --border: oklch(0.89 0.013 150);
+  --ring: var(--primary);
+  --radius: 0.625rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
+}
+
+* { border-color: var(--border); }
+body { background: var(--background); color: var(--foreground); }
