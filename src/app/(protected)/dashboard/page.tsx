@@ -1,2 +1,15 @@
-import { PlaceholderPage } from "@/components/placeholder-page";
-export default function Page() { return <PlaceholderPage eyebrow="OVERVIEW" title="Your private foundation" description="Authentication, user ownership, audit boundaries, and source storage are being established before personal records are enabled." />; }
+import Link from "next/link";
+import { ArrowUpRight, CalendarPlus, FileUp, GraduationCap, HeartPulse, Landmark, Map, Sparkles } from "lucide-react";
+
+const actions = [
+  { href: "/documents", icon: FileUp, title: "Add a document", text: "Prescription, report, or personal file", tone: "mint" },
+  { href: "/appointments", icon: CalendarPlus, title: "Add appointment", text: "Keep the time and preparation together", tone: "blue" },
+  { href: "/finance", icon: Landmark, title: "Plan your money", text: "Explore SIP, savings, and retirement", tone: "sand" },
+  { href: "/travel", icon: Map, title: "Plan a trip", text: "Route, stay, cost, and safety notes", tone: "rose" },
+  { href: "/goals", icon: GraduationCap, title: "Set a goal", text: "Choose one useful next step", tone: "violet" },
+  { href: "/memories", icon: Sparkles, title: "Keep a memory", text: "Save a moment deliberately", tone: "mint" },
+];
+
+export default function Page() {
+  return <div className="grid gap-8"><section className="dashboard-hero relative overflow-hidden rounded-[2rem] bg-ink p-7 text-white sm:p-10"><div className="relative z-10 max-w-2xl"><p className="eyebrow text-emerald-200">YOUR LIFE, IN ONE PLACE</p><h1 className="mt-4 text-4xl font-medium tracking-[-0.045em] sm:text-5xl">What would help today?</h1><p className="mt-4 max-w-xl leading-7 text-white/60">Add one detail, make one plan, or find something you saved. LifeOS keeps the context without creating noise.</p></div><div className="dashboard-orb" aria-hidden="true"/></section><section><div className="mb-4 flex items-end justify-between"><div><p className="eyebrow">QUICK START</p><h2 className="mt-2 text-2xl font-medium tracking-tight">Choose one thing</h2></div><Link href="/timeline" className="hidden items-center gap-1 text-sm text-muted-foreground hover:text-foreground sm:flex">View timeline <ArrowUpRight className="size-4"/></Link></div><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{actions.map(({ href, icon: Icon, title, text, tone }) => <Link href={href} key={href} className="action-card group"><span className={`action-icon action-icon--${tone}`}><Icon className="size-5"/></span><span className="min-w-0"><strong className="block text-sm font-semibold">{title}</strong><span className="mt-1 block text-xs leading-5 text-muted-foreground">{text}</span></span><ArrowUpRight className="ml-auto size-4 text-muted-foreground transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground"/></Link>)}</div></section><aside className="flex gap-4 rounded-2xl border border-emerald-900/10 bg-emerald-50/70 p-5"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-primary shadow-sm"><HeartPulse className="size-5"/></span><div><p className="text-sm font-semibold">LifeOS helps you decide—it does not decide for you.</p><p className="mt-1 text-sm leading-6 text-muted-foreground">Medical facts stay linked to sources. Financial results remain clearly labeled projections.</p></div></aside></div>;
+}

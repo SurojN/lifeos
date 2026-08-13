@@ -7,7 +7,7 @@ export interface UploadInput {
   requestedStorageKey?: never;
 }
 
-export interface UploadAuthorization { storageKey: string; expiresAt: Date }
+export interface UploadAuthorization { storageKey: string; uploadUrl: string; expiresAt: Date; requiredHeaders: Record<string, string> }
 export interface UploadConfirmation { storageKey: string; sizeBytes: number; checksum: string }
 export interface PrivateObject { body: unknown; mimeType: string; sizeBytes: number }
 

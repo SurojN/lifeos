@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AuthorizationError } from "@/lib/security/errors";
+import { AuditFailureError, AuthorizationError } from "@/lib/security/errors";
 import { PersonalDataService, type PersonalDataGateway } from "@/services/personal-data";
 
 const userA = "clh1234567890abcdefghijklm";
@@ -35,6 +35,7 @@ describe("ownership-scoped personal data service", () => {
   it("scopes consent history to the authenticated user", async () => {
     await new PersonalDataService(userA, gateway).listConsentHistory();
     expect(gateway.listConsentRecords).toHaveBeenCalledWith({ userId: userA });
+    expect(audit).toHaveBeenCalledWith({ userId: userA, actorUserId: userA, action: "consent_history.read", resourceType: "ConsentRecord", resourceId: undefined, result: "SUCCESS" });
   });
 
   it("rejects a client-supplied user ID instead of changing ownership", async () => {
@@ -48,8 +49,14 @@ describe("ownership-scoped personal data service", () => {
     expect(audit).toHaveBeenCalledWith({ userId: userA, actorUserId: userA, action: "life_event.delete", resourceType: "LifeEvent", resourceId, result: "SUCCESS" });
   });
 
-  it("does not audit sensitive content or expose details for denied operations", async () => {
+  it("records a minimal denied event without sensitive content", async () => {
     await expect(new PersonalDataService(userA, gateway).findDocument(resourceId)).rejects.toMatchObject({ message: "Resource not found." });
-    expect(audit).not.toHaveBeenCalled();
+    expect(audit).toHaveBeenCalledWith({ userId: userA, actorUserId: userA, action: "source_document.read", resourceType: "SourceDocument", resourceId, result: "DENIED" });
+  });
+
+  it("fails closed if the required audit cannot be written", async () => {
+    gateway.deleteLifeEvent = vi.fn(async () => ({ count: 1 }));
+    gateway.createAudit = vi.fn(async () => { throw new Error("audit unavailable"); });
+    await expect(new PersonalDataService(userA, gateway).deleteLifeEvent(resourceId)).rejects.toBeInstanceOf(AuditFailureError);
   });
 });

@@ -2,8 +2,8 @@ import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
-const buttonVariants = cva("inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50", {
-  variants: { variant: { default: "bg-primary text-primary-foreground hover:opacity-90", outline: "border border-border bg-background hover:bg-muted", ghost: "hover:bg-muted" } },
+const buttonVariants = cva("inline-flex h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50", {
+  variants: { variant: { default: "bg-primary text-primary-foreground shadow-md shadow-emerald-900/10 hover:-translate-y-0.5 hover:shadow-lg", outline: "border border-border bg-white/70 hover:bg-white", ghost: "hover:bg-white" } },
   defaultVariants: { variant: "default" },
 });
 

@@ -4,6 +4,6 @@ LifeOS is a privacy-first system for verified, source-linked personal informatio
 
 ## Status
 
-This phase establishes authentication, ownership-scoped data access, audit boundaries, private-storage abstractions, validated configuration, and placeholder UI. It does not upload documents, perform OCR or AI extraction, provide medical interpretation, or offer financial advice.
+The first usable workflow now supports private medical-document upload, explicit field review, a user-confirmed medical record, and a source-linked life event. It does not perform OCR or AI extraction, provide medical interpretation, or offer financial advice. Broader budgeting, memories, and appointments will build on the same sourced `LifeEvent` foundation.
 
-See [development setup](docs/development-setup.md), [architecture](docs/architecture.md), and [security model](docs/security-model.md).
+See [development setup](docs/development-setup.md), [production deployment](docs/production-deployment.md), [architecture](docs/architecture.md), and [security model](docs/security-model.md).

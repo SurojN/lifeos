@@ -72,147 +72,182 @@ enum AuditResult {
   FAILED
 }
 
+enum WebhookProcessingStatus {
+  RECEIVED
+  PROCESSED
+  FAILED
+}
+
 model User {
-  id String @id @default(cuid())
-  clerkUserId String @unique
-  email String
-  displayName String
-  status UserStatus @default(ACTIVE)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
-  sourceDocuments SourceDocument[]
-  documentUploads DocumentUpload[]
-  extractionJobs ExtractionJob[]
-  medicalRecords MedicalRecord[] @relation("MedicalRecordOwner")
-  verifiedMedicalRecords MedicalRecord[] @relation("MedicalRecordVerifier")
-  lifeEvents LifeEvent[]
-  auditLogs AuditLog[] @relation("AuditSubject")
-  actorAuditLogs AuditLog[] @relation("AuditActor")
-  consentRecords ConsentRecord[]
+  id                     String           @id @default(cuid())
+  clerkUserId            String           @unique
+  email                  String
+  displayName            String
+  status                 UserStatus       @default(ACTIVE)
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+  deletedAt              DateTime?
+  sourceDocuments        SourceDocument[]
+  documentUploads        DocumentUpload[]
+  extractionJobs         ExtractionJob[]
+  medicalRecords         MedicalRecord[]  @relation("MedicalRecordOwner")
+  verifiedMedicalRecords MedicalRecord[]  @relation("MedicalRecordVerifier")
+  lifeEvents             LifeEvent[]
+  auditLogs              AuditLog[]       @relation("AuditSubject")
+  actorAuditLogs         AuditLog[]       @relation("AuditActor")
+  consentRecords         ConsentRecord[]
+  webhookEvents          WebhookEvent[]
+
+  @@unique([id, clerkUserId])
 }
 
 model SourceDocument {
-  id String @id @default(cuid())
-  userId String
-  originalFileName String
-  storageKey String @unique
-  mimeType String
-  sizeBytes Int
-  checksum String
-  category DocumentCategory
-  status DocumentStatus @default(PENDING_UPLOAD)
-  verificationStatus VerificationStatus @default(UNVERIFIED)
-  uploadedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
-  user User @relation(fields: [userId], references: [id])
-  uploads DocumentUpload[]
-  extractionJobs ExtractionJob[]
-  medicalRecords MedicalRecord[]
-  lifeEvents LifeEvent[]
+  id                        String             @id @default(cuid())
+  userId                    String
+  originalFileNameEncrypted String
+  storageKey                String             @unique
+  mimeType                  String
+  sizeBytes                 Int
+  checksum                  String
+  category                  DocumentCategory
+  status                    DocumentStatus     @default(PENDING_UPLOAD)
+  verificationStatus        VerificationStatus @default(UNVERIFIED)
+  uploadedAt                DateTime?
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @updatedAt
+  deletedAt                 DateTime?
+  user                      User               @relation(fields: [userId], references: [id])
+  uploads                   DocumentUpload[]
+  extractionJobs            ExtractionJob[]
+  medicalRecords            MedicalRecord[]
+  lifeEvents                LifeEvent[]
+
+  @@unique([id, userId])
   @@index([userId, status])
 }
 
 model DocumentUpload {
-  id String @id @default(cuid())
-  userId String
-  sourceDocumentId String
-  expectedMimeType String
+  id                String               @id @default(cuid())
+  userId            String
+  sourceDocumentId  String
+  expectedMimeType  String
   expectedSizeBytes Int
-  expectedChecksum String
-  status DocumentUploadStatus @default(CREATED)
-  expiresAt DateTime
-  completedAt DateTime?
-  createdAt DateTime @default(now())
-  user User @relation(fields: [userId], references: [id])
-  sourceDocument SourceDocument @relation(fields: [sourceDocumentId], references: [id])
+  expectedChecksum  String
+  status            DocumentUploadStatus @default(CREATED)
+  expiresAt         DateTime
+  completedAt       DateTime?
+  createdAt         DateTime             @default(now())
+  user              User                 @relation(fields: [userId], references: [id])
+  sourceDocument    SourceDocument       @relation(fields: [sourceDocumentId, userId], references: [id, userId])
+
   @@index([userId, sourceDocumentId])
 }
 
 model ExtractionJob {
-  id String @id @default(cuid())
-  userId String
+  id               String              @id @default(cuid())
+  userId           String
   sourceDocumentId String
-  provider String
-  status ExtractionJobStatus @default(PENDING)
-  startedAt DateTime?
-  completedAt DateTime?
-  failureReason String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user User @relation(fields: [userId], references: [id])
-  sourceDocument SourceDocument @relation(fields: [sourceDocumentId], references: [id])
+  provider         String
+  status           ExtractionJobStatus @default(PENDING)
+  startedAt        DateTime?
+  completedAt      DateTime?
+  failureReason    String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  user             User                @relation(fields: [userId], references: [id])
+  sourceDocument   SourceDocument      @relation(fields: [sourceDocumentId, userId], references: [id, userId])
+
   @@index([userId, sourceDocumentId])
 }
 
 model MedicalRecord {
-  id String @id @default(cuid())
-  userId String
-  sourceDocumentId String
-  recordType String
-  eventDate DateTime
-  providerName String?
-  title String
-  summary String?
-  structuredData Json
-  verificationStatus VerificationStatus @default(UNVERIFIED)
-  verifiedByUserId String?
-  verifiedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
-  user User @relation("MedicalRecordOwner", fields: [userId], references: [id])
-  verifiedBy User? @relation("MedicalRecordVerifier", fields: [verifiedByUserId], references: [id])
-  sourceDocument SourceDocument @relation(fields: [sourceDocumentId], references: [id])
+  id                      String             @id @default(cuid())
+  userId                  String
+  sourceDocumentId        String
+  recordType              String
+  eventDate               DateTime
+  providerNameEncrypted   String?
+  titleEncrypted          String
+  summaryEncrypted        String?
+  structuredDataEncrypted String
+  verificationStatus      VerificationStatus @default(UNVERIFIED)
+  verifiedByUserId        String?
+  verifiedAt              DateTime?
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+  deletedAt               DateTime?
+  user                    User               @relation("MedicalRecordOwner", fields: [userId], references: [id])
+  verifiedBy              User?              @relation("MedicalRecordVerifier", fields: [verifiedByUserId], references: [id])
+  sourceDocument          SourceDocument     @relation(fields: [sourceDocumentId, userId], references: [id, userId])
+
+  @@unique([id, userId])
   @@index([userId, eventDate])
 }
 
 model LifeEvent {
-  id String @id @default(cuid())
-  userId String
-  sourceDocumentId String?
-  category LifeEventCategory
-  title String
-  description String?
-  occurredAt DateTime
-  verificationStatus VerificationStatus @default(UNVERIFIED)
-  metadata Json
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
-  user User @relation(fields: [userId], references: [id])
-  sourceDocument SourceDocument? @relation(fields: [sourceDocumentId], references: [id])
+  id                   String             @id @default(cuid())
+  userId               String
+  sourceDocumentId     String?
+  category             LifeEventCategory
+  titleEncrypted       String
+  descriptionEncrypted String?
+  occurredAt           DateTime
+  verificationStatus   VerificationStatus @default(UNVERIFIED)
+  metadataEncrypted    String
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  deletedAt            DateTime?
+  user                 User               @relation(fields: [userId], references: [id])
+  sourceDocument       SourceDocument?    @relation(fields: [sourceDocumentId, userId], references: [id, userId])
+
+  @@unique([id, userId])
   @@index([userId, occurredAt])
 }
 
 model AuditLog {
-  id String @id @default(cuid())
-  userId String
-  actorUserId String
-  action String
+  id           String      @id @default(cuid())
+  userId       String
+  actorUserId  String
+  action       String
   resourceType String
-  resourceId String?
-  result AuditResult
-  metadata Json
-  ipHash String?
-  userAgent String?
-  createdAt DateTime @default(now())
-  user User @relation("AuditSubject", fields: [userId], references: [id])
-  actor User @relation("AuditActor", fields: [actorUserId], references: [id])
+  resourceId   String?
+  result       AuditResult
+  metadata     Json
+  ipHash       String?
+  userAgent    String?
+  createdAt    DateTime    @default(now())
+  user         User        @relation("AuditSubject", fields: [userId], references: [id])
+  actor        User        @relation("AuditActor", fields: [actorUserId], references: [id])
+
   @@index([userId, createdAt])
 }
 
 model ConsentRecord {
-  id String @id @default(cuid())
-  userId String
-  consentType String
+  id            String    @id @default(cuid())
+  userId        String
+  consentType   String
   policyVersion String
-  granted Boolean
-  grantedAt DateTime?
-  revokedAt DateTime?
-  createdAt DateTime @default(now())
-  user User @relation(fields: [userId], references: [id])
+  granted       Boolean
+  grantedAt     DateTime?
+  revokedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  user          User      @relation(fields: [userId], references: [id])
+
   @@index([userId, consentType, createdAt])
+}
+
+model WebhookEvent {
+  id              String                  @id @default(cuid())
+  userId          String?
+  provider        String
+  externalEventId String
+  eventType       String
+  receivedAt      DateTime                @default(now())
+  processedAt     DateTime?
+  status          WebhookProcessingStatus @default(RECEIVED)
+  failureCode     String?
+  user            User?                   @relation(fields: [userId], references: [id])
+
+  @@unique([provider, externalEventId])
+  @@index([status, receivedAt])
 }

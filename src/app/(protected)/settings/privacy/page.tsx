@@ -1,2 +1,10 @@
-import { PlaceholderPage } from "@/components/placeholder-page";
-export default function Page() { return <PlaceholderPage eyebrow="PRIVACY" title="Control your information" description="Consent history is append-only. Export and permanent deletion workflows require founder-approved retention and key-recovery decisions before activation." />; }
+import { requireInternalUser } from "@/lib/auth/adapter";
+import { listConsentHistoryForUser } from "@/repositories/consent-records";
+import { ShieldCheck } from "lucide-react";
+import { PageHero } from "@/components/page-hero";
+
+export default async function Page() {
+  const user = await requireInternalUser();
+  const consents = await listConsentHistoryForUser(user.id);
+  return <div className="grid gap-6"><PageHero eyebrow="PRIVACY" title="Control your information" description="Export your structured history at any time. Original document bytes are downloaded individually from Documents." icon={ShieldCheck} status="User-owned and auditable" /><div className="grid gap-4 lg:grid-cols-2"><section className="rounded-xl border bg-card p-6"><h2 className="font-semibold">Export</h2><p className="mt-1 text-sm text-muted-foreground">Creates a private JSON download containing decrypted records, source metadata, timeline entries, and consent history.</p><a href="/api/privacy/export" className="mt-4 inline-block rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground">Download my data</a><p className="mt-3 text-xs text-muted-foreground">The exported file is sensitive. Store or delete it carefully.</p></section><section className="rounded-xl border bg-card p-6"><h2 className="font-semibold">Consent history</h2>{consents.length ? <ul className="mt-3 grid gap-2 text-sm">{consents.map((consent) => <li key={consent.id}>{consent.consentType} · {consent.granted ? "granted" : "not granted"} · {consent.createdAt.toLocaleDateString()}</li>)}</ul> : <p className="mt-2 text-sm text-muted-foreground">No optional integrations or AI-processing consent has been recorded.</p>}</section></div><section className="rounded-xl border border-amber-300 bg-amber-50 p-6 text-sm text-amber-950"><h2 className="font-semibold">Permanent deletion</h2><p className="mt-1">Self-service account deletion is not activated yet because document erasure, audit retention, and encryption-key recovery must be completed as one verified workflow. Contact-assisted deletion remains a release blocker, not a hidden promise.</p></section></div>;
+}

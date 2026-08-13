@@ -31,6 +31,9 @@ export async function getOrCreateInternalUser(identity: ExternalIdentity): Promi
 
 export async function requireInternalUser(): Promise<InternalUserIdentity> {
   const identity = await requireAuthenticatedIdentity();
-  const user = await getDatabase().user.findUnique({ where: { clerkUserId: identity.externalUserId }, select: { id: true, clerkUserId: true, status: true } });
+  // A verified Clerk session is sufficient to bootstrap the internal ownership
+  // record. Webhooks keep identity fields synchronized later, but sign-in must
+  // not depend on webhook delivery ordering or configuration.
+  const user = await getOrCreateInternalUser(identity);
   return requireActiveInternalUser(user);
 }

@@ -9,3 +9,28 @@ Private document bytes live outside PostgreSQL behind `PrivateStorage`. MinIO an
 The planned document lifecycle is `PENDING_UPLOAD` → `UPLOADED` → `QUARANTINED` → `AVAILABLE`, with `REJECTED` and soft `DELETED` terminal outcomes. `DocumentUpload` separately records short-lived authorization and byte/checksum verification. A future `ExtractionJob` may move from `PENDING` to review, but no provider exists yet. Extracted medical information remains `UNVERIFIED` until an explicit user-confirmation transaction creates or updates the medical record and its source-linked life event.
 
 The historical Vite prototype under `prototype/` is reference material only and shares no production runtime code.
+
+## Trust boundaries
+
+```text
+Untrusted browser
+   │ Clerk session + validated request (never a trusted userId or key)
+   ▼
+Next.js Node.js server ── verifies identity ──► Clerk
+   │ maps Clerk ID to internal User.id
+   │ authorizes + audits within LifeOS
+   ├──► PostgreSQL / Prisma (ownership, encrypted domain values, audit ledger)
+   └──► PrivateStorage ──► private MinIO or S3/SSE-KMS bucket
+                                  ▲
+                       short-lived signed PUT only
+```
+
+Authentication answers who holds a verified Clerk session. Authorization separately resolves the active internal LifeOS user and scopes every personal-data operation to that internal `userId`. Client input cannot select an owner or storage key.
+
+## Tenant-consistent relationships
+
+User-owned resource models expose compound uniqueness on `(id, userId)`. `DocumentUpload`, `ExtractionJob`, `MedicalRecord`, and `LifeEvent` reference `SourceDocument` through both `sourceDocumentId` and `userId`. PostgreSQL therefore rejects a cross-owner link even if application authorization contains a defect. Application-level authorization remains mandatory.
+
+## Upload and quarantine lifecycle
+
+The server validates filename, fixed MIME type, byte size, SHA-256 checksum, and authenticated user. It generates a random user-prefixed key, creates one `DocumentUpload`, and returns a ten-minute presigned PUT plus fixed required headers. Production signatures require SSE-KMS; MinIO uses the same private interface without KMS. Confirmation accepts only the upload ID, resolves the stored key server-side, checks ownership, status, expiry, object size and checksum, consumes the authorization once, and moves the document to `QUARANTINED`. A later malware/content-validation step must move it to `AVAILABLE` or `REJECTED`.
