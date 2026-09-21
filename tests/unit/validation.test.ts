@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { documentUploadSchema, MAX_UPLOAD_BYTES } from "@/validation/documents";
 import { resourceIdSchema, sha256Schema } from "@/validation/common";
-import { medicalRecordConfirmationSchema } from "@/validation/medical-records";
+import { medicalRecordConfirmationSchema, medicalRecordReplacementSchema, medicalRecordStructuredDataSchema } from "@/validation/medical-records";
 import { userLifeEventSchema } from "@/validation/life-events";
 
 const validUpload = { originalFileName: "report.pdf", mimeType: "application/pdf", sizeBytes: 1024, checksum: "a".repeat(64), category: "HEALTH" };
@@ -24,5 +24,20 @@ describe("medical record confirmation", () => {
   const valid = { sourceDocumentId: "doc_123", recordType: "PRESCRIPTION", eventDate: "2025-01-01", title: "Reviewed prescription", medications: [] };
   it("coerces a reviewed date", () => { expect(medicalRecordConfirmationSchema.parse(valid).eventDate).toBeInstanceOf(Date); });
   it("rejects invented record types", () => { expect(() => medicalRecordConfirmationSchema.parse({ ...valid, recordType: "DIAGNOSIS" })).toThrow(); });
+  it("checks future dates when each request is parsed", () => {
+    const tomorrow = new Date(Date.now() + 86_400_000).toISOString();
+    expect(() => medicalRecordConfirmationSchema.parse({ ...valid, eventDate: tomorrow })).toThrow("future");
+  });
   it("rejects unknown fields", () => { expect(() => medicalRecordConfirmationSchema.parse({ ...valid, aiConfidence: 1 })).toThrow(); });
+  it("preserves reviewed medicines and an optional extraction job", () => {
+    const parsed = medicalRecordConfirmationSchema.parse({ ...valid, extractionJobId: "job_123", medications: [{ name: "Medicine", instructions: "Once daily" }] });
+    expect(parsed.medications).toEqual([{ name: "Medicine", instructions: "Once daily" }]);
+    expect(parsed.extractionJobId).toBe("job_123");
+  });
+  it("does not allow a replacement to change the source document", () => {
+    expect(() => medicalRecordReplacementSchema.parse({ ...valid, sourceDocumentId: "another_source" })).toThrow();
+  });
+  it("falls back safely when old structured data has an unknown shape", () => {
+    expect(medicalRecordStructuredDataSchema.safeParse({ private: true }).success).toBe(false);
+  });
 });

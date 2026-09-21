@@ -26,7 +26,19 @@ const storageEnvironmentSchema = z.object({
   }
 });
 
-const serverEnvironmentSchema = databaseEnvironmentSchema.and(clerkEnvironmentSchema).and(webhookEnvironmentSchema).and(encryptionEnvironmentSchema).and(storageEnvironmentSchema);
+const aiEnvironmentSchema = z.object({
+  AI_PROVIDER: z.enum(["openai-compatible"]).optional(),
+  AI_API_URL: z.url().optional(),
+  AI_API_KEY: z.string().min(1).optional(),
+  AI_MODEL: z.string().min(1).optional(),
+}).superRefine((environment, context) => {
+  const configured = Boolean(environment.AI_PROVIDER || environment.AI_API_URL || environment.AI_API_KEY || environment.AI_MODEL);
+  if (configured && (!environment.AI_PROVIDER || !environment.AI_API_URL || !environment.AI_API_KEY || !environment.AI_MODEL)) {
+    context.addIssue({ code: "custom", path: ["AI_PROVIDER"], message: "AI_PROVIDER, AI_API_URL, AI_API_KEY, and AI_MODEL must be configured together." });
+  }
+});
+
+const serverEnvironmentSchema = databaseEnvironmentSchema.and(clerkEnvironmentSchema).and(webhookEnvironmentSchema).and(encryptionEnvironmentSchema).and(storageEnvironmentSchema).and(aiEnvironmentSchema);
 export type ServerEnvironment = z.infer<typeof serverEnvironmentSchema>;
 
 export function getServerEnvironment(source: NodeJS.ProcessEnv = process.env): ServerEnvironment {

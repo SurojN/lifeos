@@ -17,6 +17,18 @@ export class MedicalConfirmationService {
 
     return this.database.$transaction(async (transaction) => {
       const now = new Date();
+      if (input.extractionJobId) {
+        const extraction = await transaction.extractionJob.updateMany({
+          where: {
+            id: input.extractionJobId,
+            userId,
+            sourceDocumentId: source.id,
+            status: "NEEDS_REVIEW",
+          },
+          data: { status: "CONFIRMED" },
+        });
+        if (extraction.count !== 1) throw new AuthorizationError();
+      }
       const record = await transaction.medicalRecord.create({
         data: {
           userId,
@@ -36,6 +48,7 @@ export class MedicalConfirmationService {
         data: {
           userId,
           sourceDocumentId: source.id,
+          medicalRecordId: record.id,
           category: "HEALTH",
           titleEncrypted: this.encryption.encrypt(input.title),
           descriptionEncrypted: input.summary ? this.encryption.encrypt(input.summary) : null,

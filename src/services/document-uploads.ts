@@ -42,6 +42,28 @@ export class DocumentUploadService {
     return { documentId: upload.sourceDocumentId, status: "QUARANTINED" as const };
   }
 
+  async delete(userId: string, rawDocumentId: string) {
+    const documentId = resourceIdSchema.parse(rawDocumentId);
+    const document = await this.database.sourceDocument.findFirst({
+      where: { id: documentId, userId, deletedAt: null },
+      select: { id: true, storageKey: true, status: true },
+    });
+    if (!document) return this.deny(userId, documentId, "document_not_found");
+
+    if (document.status !== "PENDING_UPLOAD") {
+      await this.storage.deletePrivateObject({ userId, storageKey: document.storageKey });
+    }
+    await this.database.$transaction(async transaction => {
+      const updated = await transaction.sourceDocument.updateMany({
+        where: { id: document.id, userId, deletedAt: null },
+        data: { status: "DELETED", deletedAt: new Date() },
+      });
+      if (updated.count !== 1) throw new AuthorizationError();
+      await transaction.auditLog.create({ data: { userId, actorUserId: userId, action: "source_document.delete", resourceType: "SourceDocument", resourceId: document.id, result: "SUCCESS", metadata: { previousStatus: document.status } } });
+    });
+    return { documentId: document.id, status: "DELETED" as const };
+  }
+
   private async deny(userId: string, uploadId: string, reason: string): Promise<never> {
     await this.database.auditLog.create({ data: { userId, actorUserId: userId, action: "document_upload.confirm", resourceType: "DocumentUpload", resourceId: uploadId, result: "DENIED", metadata: { reason } } });
     throw new AuthorizationError();

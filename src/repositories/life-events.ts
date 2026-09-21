@@ -6,7 +6,7 @@ import { getApplicationEncryption } from "@/lib/security/encryption";
 export async function listLifeEventsForUser(userId: string) {
   const events = await getDatabase().lifeEvent.findMany({
     where: { userId, deletedAt: null },
-    include: { sourceDocument: { select: { originalFileNameEncrypted: true } } },
+    include: { sourceDocument: { select: { id: true, originalFileNameEncrypted: true, status: true, deletedAt: true } } },
     orderBy: { occurredAt: "desc" },
   });
   const encryption = getApplicationEncryption();
@@ -17,6 +17,8 @@ export async function listLifeEventsForUser(userId: string) {
     description: descriptionEncrypted ? encryption.decrypt(descriptionEncrypted) : null,
     metadata: encryption.decryptJson(metadataEncrypted),
     sourceFileName: sourceDocument ? encryption.decrypt(sourceDocument.originalFileNameEncrypted) : null,
+    sourceDocumentId: sourceDocument?.id ?? null,
+    sourceAvailable: sourceDocument ? sourceDocument.deletedAt === null && ["QUARANTINED", "AVAILABLE"].includes(sourceDocument.status) : false,
   }));
 }
 

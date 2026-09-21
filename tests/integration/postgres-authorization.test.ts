@@ -27,8 +27,8 @@ let lifeEventB: { id: string };
 beforeAll(async () => {
   await database.auditLog.deleteMany();
   await database.webhookEvent.deleteMany();
-  await database.medicalRecord.deleteMany();
   await database.lifeEvent.deleteMany();
+  await database.medicalRecord.deleteMany();
   await database.extractionJob.deleteMany();
   await database.documentUpload.deleteMany();
   await database.consentRecord.deleteMany();
@@ -73,6 +73,10 @@ describe("real PostgreSQL tenant authorization", () => {
 
   it("rejects a database link from User A's medical record to User B's document", async () => {
     await expect(database.medicalRecord.create({ data: { userId: userA.id, sourceDocumentId: documentB.id, recordType: "REPORT", eventDate: new Date(), titleEncrypted: encryption.encrypt("Invalid link"), structuredDataEncrypted: encryption.encryptJson({}) } })).rejects.toThrow();
+  });
+
+  it("rejects a database link from User A's life event to User B's medical record", async () => {
+    await expect(database.lifeEvent.create({ data: { userId: userA.id, medicalRecordId: medicalRecordB.id, category: "HEALTH", titleEncrypted: encryption.encrypt("Invalid event"), occurredAt: new Date(), metadataEncrypted: encryption.encryptJson({}) } })).rejects.toThrow();
   });
 
   it("writes minimal DENIED audit events for rejected operations", async () => {

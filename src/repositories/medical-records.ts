@@ -2,12 +2,40 @@ import "server-only";
 import { getDatabase } from "@/lib/db/client";
 import type { Prisma } from "@/generated/prisma/client";
 import { getApplicationEncryption } from "@/lib/security/encryption";
+import { medicalRecordStructuredDataSchema } from "@/validation/medical-records";
 
 export async function listMedicalRecordsForUser(userId: string) {
-  const records = await getDatabase().medicalRecord.findMany({ where: { userId, deletedAt: null }, orderBy: { eventDate: "desc" } });
+  const records = await getDatabase().medicalRecord.findMany({
+    where: { userId, deletedAt: null },
+    include: {
+      sourceDocument: {
+        select: {
+          id: true,
+          originalFileNameEncrypted: true,
+          status: true,
+          deletedAt: true,
+        },
+      },
+    },
+    orderBy: { eventDate: "desc" },
+  });
   const encryption = getApplicationEncryption();
   await getDatabase().auditLog.create({ data: { userId, actorUserId: userId, action: "medical_record.list", resourceType: "MedicalRecord", result: "SUCCESS", metadata: {} } });
-  return records.map(({ titleEncrypted, summaryEncrypted, providerNameEncrypted, structuredDataEncrypted, ...record }) => ({ ...record, title: encryption.decrypt(titleEncrypted), summary: summaryEncrypted ? encryption.decrypt(summaryEncrypted) : null, providerName: providerNameEncrypted ? encryption.decrypt(providerNameEncrypted) : null, structuredData: encryption.decryptJson(structuredDataEncrypted) }));
+  return records.map(({ titleEncrypted, summaryEncrypted, providerNameEncrypted, structuredDataEncrypted, sourceDocument, ...record }) => {
+    const structuredData = medicalRecordStructuredDataSchema.safeParse(encryption.decryptJson(structuredDataEncrypted));
+    return {
+      ...record,
+      title: encryption.decrypt(titleEncrypted),
+      summary: summaryEncrypted ? encryption.decrypt(summaryEncrypted) : null,
+      providerName: providerNameEncrypted ? encryption.decrypt(providerNameEncrypted) : null,
+      structuredData: structuredData.success ? structuredData.data : { medications: [] },
+      sourceDocument: {
+        id: sourceDocument.id,
+        originalFileName: encryption.decrypt(sourceDocument.originalFileNameEncrypted),
+        available: sourceDocument.deletedAt === null && ["QUARANTINED", "AVAILABLE"].includes(sourceDocument.status),
+      },
+    };
+  });
 }
 
 export function createMedicalRecordForUser(userId: string, input: { sourceDocumentId: string; recordType: string; eventDate: Date; providerName?: string; title: string; summary?: string; structuredData: unknown }) {

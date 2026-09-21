@@ -9,7 +9,7 @@ export class S3CompatiblePrivateStorage implements PrivateStorage {
   constructor(private readonly client: S3Client, private readonly bucket: string, private readonly kmsKeyId?: string) {}
 
   async createUploadAuthorization(input: UploadInput) {
-    documentUploadSchema.parse({ originalFileName: input.originalFileName, mimeType: input.mimeType, sizeBytes: input.sizeBytes, checksum: input.checksum, category: "HEALTH" });
+    documentUploadSchema.parse({ originalFileName: input.originalFileName, mimeType: input.mimeType, sizeBytes: input.sizeBytes, checksum: input.checksum, category: "GENERAL" });
     const storageKey = generateStorageKey(input.userId, input.originalFileName);
     const checksumBase64 = Buffer.from(input.checksum, "hex").toString("base64");
     const requiredHeaders: Record<string, string> = { "content-type": input.mimeType, "content-length": String(input.sizeBytes), "x-amz-checksum-sha256": checksumBase64, "x-amz-meta-sha256": input.checksum };

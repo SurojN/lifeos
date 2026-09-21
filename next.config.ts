@@ -1,5 +1,8 @@
 import type { NextConfig } from "next";
 
+// LifeOS does not collect or forward SDK telemetry without an explicit product decision.
+process.env.NEXT_PUBLIC_CLERK_TELEMETRY_DISABLED = "true";
+
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },

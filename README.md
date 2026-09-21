@@ -4,9 +4,13 @@ LifeOS is a privacy-first system for verified, source-linked personal informatio
 
 ## Status
 
-The first usable workflow now supports private medical-document upload, explicit field review, a user-confirmed medical record, and a source-linked life event. It does not perform OCR or AI extraction, provide medical interpretation, or offer financial advice. Broader budgeting, memories, and appointments will build on the same sourced `LifeEvent` foundation.
+The first usable workflow now supports private medical-document upload, explicit field review, a user-confirmed medical record, a source-linked life event, private in-page history search, correction/deletion of confirmed records, and a private Life Guide that answers from confirmed or user-entered facts. Optional one-time AI suggestions are available for JPEG and PNG sources only after explicit consent; manual review remains the default and works without AI. LifeOS does not diagnose, provide medical interpretation, or offer financial advice.
 
-See [development setup](docs/development-setup.md), [production deployment](docs/production-deployment.md), [architecture](docs/architecture.md), and [security model](docs/security-model.md).
+See [development setup](docs/development-setup.md), [production deployment](docs/production-deployment.md), [architecture](docs/architecture.md), [security model](docs/security-model.md), and the [commercial strategy](docs/commercial-strategy.md).
+
+The [delivery roadmap](docs/roadmap.md) connects this foundation to appointment preparation, travel planning, and future actions that require user confirmation. The Appointments page now lets you select confirmed health records, add your own questions, and preview a plain-text brief before downloading it. Drafts stay in the current page; no AI or booking service receives them. Original documents remain in the private vault and are referenced by filename and ID in the brief.
+
+Documents can be uploaded privately from the Documents, Medical, Finance, and Travel sections. Each upload is assigned a LifeOS category, validated for type/size/checksum, quarantined after verification, and can be deleted by its owner. Confirmed medical records remain separate from their source documents, retain a direct tenant-safe relationship to their timeline event, and require explicit review. Search terms are filtered in the loaded page instead of being sent in URL query strings.
 
 ## Install on a phone
 

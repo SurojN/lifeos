@@ -148,14 +148,18 @@ model ExtractionJob {
   userId           String
   sourceDocumentId String
   provider         String
+  model            String
+  consentRecordId  String
   status           ExtractionJobStatus @default(PENDING)
   startedAt        DateTime?
   completedAt      DateTime?
   failureReason    String?
+  resultEncrypted  String?
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
   user             User                @relation(fields: [userId], references: [id])
   sourceDocument   SourceDocument      @relation(fields: [sourceDocumentId, userId], references: [id, userId])
+  consentRecord    ConsentRecord       @relation(fields: [consentRecordId], references: [id])
 
   @@index([userId, sourceDocumentId])
 }
@@ -179,6 +183,7 @@ model MedicalRecord {
   user                    User               @relation("MedicalRecordOwner", fields: [userId], references: [id])
   verifiedBy              User?              @relation("MedicalRecordVerifier", fields: [verifiedByUserId], references: [id])
   sourceDocument          SourceDocument     @relation(fields: [sourceDocumentId, userId], references: [id, userId])
+  lifeEvent               LifeEvent?
 
   @@unique([id, userId])
   @@index([userId, eventDate])
@@ -188,6 +193,7 @@ model LifeEvent {
   id                   String             @id @default(cuid())
   userId               String
   sourceDocumentId     String?
+  medicalRecordId      String?
   category             LifeEventCategory
   titleEncrypted       String
   descriptionEncrypted String?
@@ -199,8 +205,10 @@ model LifeEvent {
   deletedAt            DateTime?
   user                 User               @relation(fields: [userId], references: [id])
   sourceDocument       SourceDocument?    @relation(fields: [sourceDocumentId, userId], references: [id, userId])
+  medicalRecord        MedicalRecord?     @relation(fields: [medicalRecordId, userId], references: [id, userId])
 
   @@unique([id, userId])
+  @@unique([medicalRecordId, userId])
   @@index([userId, occurredAt])
 }
 
@@ -223,15 +231,16 @@ model AuditLog {
 }
 
 model ConsentRecord {
-  id            String    @id @default(cuid())
-  userId        String
-  consentType   String
-  policyVersion String
-  granted       Boolean
-  grantedAt     DateTime?
-  revokedAt     DateTime?
-  createdAt     DateTime  @default(now())
-  user          User      @relation(fields: [userId], references: [id])
+  id             String          @id @default(cuid())
+  userId         String
+  consentType    String
+  policyVersion  String
+  granted        Boolean
+  grantedAt      DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime        @default(now())
+  user           User            @relation(fields: [userId], references: [id])
+  extractionJobs ExtractionJob[]
 
   @@index([userId, consentType, createdAt])
 }

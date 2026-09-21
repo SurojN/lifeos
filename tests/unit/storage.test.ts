@@ -31,4 +31,10 @@ describe("private storage boundaries", () => {
     expect(authorization.requiredHeaders["x-amz-server-side-encryption"]).toBe("aws:kms");
     expect(authorization.requiredHeaders["x-amz-server-side-encryption-aws-kms-key-id"]).toBe("kms-key-id");
   });
+
+  it("authorizes non-medical section uploads through the same private storage boundary", async () => {
+    const client = new S3Client({ region: "us-east-1", endpoint: "http://127.0.0.1:9000", forcePathStyle: true, credentials: { accessKeyId: "test", secretAccessKey: "test-secret" } });
+    const storage = new S3CompatiblePrivateStorage(client, "private-bucket");
+    await expect(storage.createUploadAuthorization({ userId, originalFileName: "itinerary.pdf", mimeType: "application/pdf", sizeBytes: 10, checksum: "b".repeat(64) })).resolves.toMatchObject({ requiredHeaders: { "content-type": "application/pdf" } });
+  });
 });
