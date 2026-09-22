@@ -3,12 +3,12 @@ import { DocumentUploadForm } from "@/components/document-upload-form";
 import { MedicalRecordList } from "@/components/medical-record-list";
 import { MedicalReviewForm } from "@/components/medical-review-form";
 import { PageHero } from "@/components/page-hero";
-import { requireInternalUser } from "@/lib/auth/adapter";
+import { requirePageUser } from "@/lib/auth/adapter";
 import { listMedicalRecordsForUser } from "@/repositories/medical-records";
 import { listSourceDocumentsForUser } from "@/repositories/source-documents";
 
 export default async function Page() {
-  const user = await requireInternalUser();
+  const user = await requirePageUser();
   const [records, allDocuments] = await Promise.all([
     listMedicalRecordsForUser(user.id),
     listSourceDocumentsForUser(user.id),

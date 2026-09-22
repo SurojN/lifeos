@@ -1,11 +1,9 @@
 import { ApplicationShell } from "@/components/application-shell";
-import { requireInternalUser } from "@/lib/auth/adapter";
-import { auth } from "@clerk/nextjs/server";
+import { requirePageUser } from "@/lib/auth/adapter";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
-  await auth.protect();
-  await requireInternalUser();
+  await requirePageUser();
   return <ApplicationShell>{children}</ApplicationShell>;
 }

@@ -1,5 +1,6 @@
 import "server-only";
 import { auth, currentUser } from "@clerk/nextjs/server";
+import { cache } from "react";
 import { getDatabase } from "@/lib/db/client";
 import { requireActiveInternalUser, requireIdentity } from "./policy";
 import type { ExternalIdentity, InternalUserIdentity } from "@/types/auth";
@@ -37,3 +38,11 @@ export async function requireInternalUser(): Promise<InternalUserIdentity> {
   const user = await getOrCreateInternalUser(identity);
   return requireActiveInternalUser(user);
 }
+
+// Layouts and pages can render concurrently. Each private page must redirect
+// signed-out visitors before asking for their internal database identity.
+// React cache deduplicates this work only within a server render request.
+export const requirePageUser = cache(async (): Promise<InternalUserIdentity> => {
+  await auth.protect();
+  return requireInternalUser();
+});

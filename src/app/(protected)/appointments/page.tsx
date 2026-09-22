@@ -3,11 +3,11 @@ import { AppointmentPreparation } from "@/components/appointment-preparation";
 import { LifeEntryForm } from "@/components/life-entry-form";
 import { CalendarDays } from "lucide-react";
 import { PageHero } from "@/components/page-hero";
-import { requireInternalUser } from "@/lib/auth/adapter";
+import { requirePageUser } from "@/lib/auth/adapter";
 import { listMedicalRecordsForUser } from "@/repositories/medical-records";
 
 export default async function Page() {
-  const user = await requireInternalUser();
+  const user = await requirePageUser();
   const records = await listMedicalRecordsForUser(user.id);
 
   return <div className="grid gap-6">

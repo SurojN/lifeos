@@ -1,26 +1,14 @@
 "use client";
 
 import { useDeferredValue, useState } from "react";
-import { Download, Search, X } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Search, X } from "lucide-react";
+import { LIFE_EVENT_CATEGORIES, type LifeEntrySourceDocument } from "@/components/life-entry-form";
+import { TimelineEventCard, type TimelineEventData } from "@/components/timeline-event-card";
 import { matchesPersonalSearch } from "@/lib/personal-search";
 
-const categories = ["ALL", "HEALTH", "FINANCE", "TRAVEL", "IDENTITY", "EDUCATION", "CAREER", "FAMILY", "PROPERTY", "GENERAL"] as const;
+const categories = ["ALL", ...LIFE_EVENT_CATEGORIES] as const;
 
-type TimelineEvent = {
-  id: string;
-  category: string;
-  verificationStatus: string;
-  title: string;
-  description: string | null;
-  occurredAt: string;
-  occurredAtLabel: string;
-  sourceFileName: string | null;
-  sourceDocumentId: string | null;
-  sourceAvailable: boolean;
-};
-
-export function TimelineEventList({ events }: { events: TimelineEvent[] }) {
+export function TimelineEventList({ events, sourceDocuments = [] }: { events: TimelineEventData[]; sourceDocuments?: LifeEntrySourceDocument[] }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<(typeof categories)[number]>("ALL");
   const deferredQuery = useDeferredValue(query);
@@ -43,16 +31,7 @@ export function TimelineEventList({ events }: { events: TimelineEvent[] }) {
     </section>
 
     <section className="timeline-list grid gap-3" aria-live="polite">
-      {matchingEvents.length > 0 ? matchingEvents.map((event) => <article key={event.id} className="relative rounded-xl border bg-card p-5">
-        <div className="flex flex-wrap items-center gap-2"><span className="text-xs font-semibold text-primary">{event.category}</span><Badge>{event.verificationStatus.replaceAll("_", " ").toLocaleLowerCase()}</Badge></div>
-        <h2 className="mt-2 font-semibold">{event.title}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{event.occurredAtLabel}</p>
-        {event.description && <p className="mt-3 text-sm leading-6">{event.description}</p>}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-3 text-xs text-muted-foreground">
-          <span>Source: {event.sourceFileName ?? "User entry"}</span>
-          {event.sourceDocumentId && event.sourceAvailable ? <a href={`/api/documents/${event.sourceDocumentId}/download`} className="inline-flex items-center gap-1.5 font-semibold text-primary hover:underline"><Download className="size-3.5"/>Download original</a> : event.sourceFileName ? <span>Original source was deleted</span> : null}
-        </div>
-      </article>) : <div className="empty-state"><p className="font-medium text-foreground">No events match these filters.</p><p className="mt-1">Try fewer words or choose all categories.</p></div>}
+      {matchingEvents.length > 0 ? matchingEvents.map((event) => <TimelineEventCard key={event.id} event={event} sourceDocuments={sourceDocuments}/>) : <div className="empty-state"><p className="font-medium text-foreground">No events match these filters.</p><p className="mt-1">Try fewer words or choose all categories.</p></div>}
     </section>
   </div>;
 }
