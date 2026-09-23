@@ -163,7 +163,7 @@ describe("user-entered life events", () => {
     expect(context.state.audits).toEqual([expect.objectContaining({ action: "life_event.delete", resourceId: eventId, result: "SUCCESS" })]);
   });
 
-  it.each(["missing", "foreign", "deleted", "medical-relation", "legacy-medical", "forged-user-origin", "null-medical-marker", "unknown-origin", "missing-origin"])("protects a %s event from replacement and removal", async (kind) => {
+  it.each(["missing", "foreign", "deleted", "medical-relation", "legacy-medical", "forged-user-origin", "null-medical-marker", "structured-finance", "unknown-origin", "missing-origin"])("protects a %s event from replacement and removal", async (kind) => {
     for (const operation of ["replace", "delete"] as const) {
       const context = fixture();
       const saved = context.state.events[0];
@@ -174,6 +174,7 @@ describe("user-entered life events", () => {
       else if (kind === "legacy-medical") saved.metadataEncrypted = encryption.encryptJson({ medicalRecordId: "medical-record" });
       else if (kind === "forged-user-origin") saved.metadataEncrypted = encryption.encryptJson({ origin: "USER_ENTERED", medicalRecordId: "medical-record" });
       else if (kind === "null-medical-marker") saved.metadataEncrypted = encryption.encryptJson({ origin: "USER_ENTERED", medicalRecordId: null });
+      else if (kind === "structured-finance") saved.metadataEncrypted = encryption.encryptJson({ origin: "USER_ENTERED", financeVersion: 1 });
       else if (kind === "unknown-origin") saved.metadataEncrypted = encryption.encryptJson({ origin: "AI_EXTRACTED" });
       else saved.metadataEncrypted = encryption.encryptJson({ kind: "TRIP" });
       const before = structuredClone(context.state.events);
@@ -211,6 +212,7 @@ describe("user-entered life events", () => {
   it("rejects forged medical metadata, invalid dates and protected replacement fields before database access", async () => {
     const context = fixture();
     await expect(context.service.create(userId, { ...creation, metadata: { medicalRecordId: "medical-record" } })).rejects.toThrow();
+    await expect(context.service.create(userId, { ...creation, metadata: { financeVersion: 1 } })).rejects.toThrow();
     await expect(context.service.create(userId, { ...creation, sourceDocumentId: "" })).rejects.toThrow();
     await expect(context.service.create(userId, { ...creation, occurredAt: null })).rejects.toThrow();
     await expect(context.service.replace(userId, eventId, { ...replacement, category: "HEALTH" })).rejects.toThrow();

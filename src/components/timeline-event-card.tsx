@@ -23,6 +23,7 @@ export type TimelineEventData = {
   userEntered: boolean;
   canEdit: boolean;
   medicalRecord: boolean;
+  financeRecord?: boolean;
 };
 
 const inputClassName = "mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm";
@@ -132,6 +133,7 @@ export function TimelineEventCard({ event, sourceDocuments }: { event: TimelineE
       <Button type="button" variant="outline" onClick={remove} disabled={busy !== null} className="text-red-700"><Trash2 className="mr-1.5 size-3.5"/>{busy === "delete" ? "Deleting…" : "Delete event"}</Button>
     </div>}
     {event.medicalRecord && <p className="mt-4 text-sm"><Link href="/medical" className="font-semibold text-primary hover:underline">Edit or delete the linked medical record</Link><span className="mt-1 block text-xs text-muted-foreground">Changes there keep the medical record and this event together.</span></p>}
+    {event.financeRecord && <p className="mt-4 text-sm"><Link href="/finance" className="font-semibold text-primary hover:underline">Manage this entry in Finance</Link><span className="mt-1 block text-xs text-muted-foreground">Update amounts and dates there to keep your totals consistent.</span></p>}
 
     {editing && <form onSubmit={save} className="mt-5 grid gap-4 border-t pt-5">
       <fieldset disabled={busy !== null} className="grid min-w-0 gap-4">

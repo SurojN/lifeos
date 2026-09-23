@@ -9,6 +9,9 @@ import { PersonalDataService } from "@/services/personal-data";
 import { DocumentUploadService } from "@/services/document-uploads";
 import type { PrivateStorage } from "@/lib/storage/types";
 import { processClerkWebhook } from "@/services/clerk-webhooks";
+import { FinanceService } from "@/services/finance";
+import { LifeEventEntryService } from "@/services/life-event-entry";
+import { summarizeFinanceMonth } from "@/lib/finance";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 const parsedTestDatabaseUrl = testDatabaseUrl ? new URL(testDatabaseUrl) : undefined;
@@ -110,5 +113,83 @@ describe("real PostgreSQL tenant authorization", () => {
     expect(await processClerkWebhook(database, "svix-integration-1", event)).toEqual({ duplicate: true });
     expect(await database.webhookEvent.count({ where: { provider: "clerk", externalEventId: "svix-integration-1", status: "PROCESSED" } })).toBe(1);
     expect(await database.user.count({ where: { clerkUserId: "integration-webhook-user" } })).toBe(1);
+  });
+
+  it("persists encrypted savings goals through correction/export/deletion while enforcing owner and workflow boundaries", async () => {
+    const service = new FinanceService(database, encryption);
+    const input = {
+      kind: "SAVINGS_GOAL", title: "Synthetic private emergency fund", notes: "Synthetic private savings note",
+      targetAmount: 12_345.67, currentAmount: 1_234.56, monthlyContribution: 250.25, targetDate: "2027-03-01",
+    };
+    const { recordId } = await service.create(userA.id, input);
+    const stored = await database.lifeEvent.findUniqueOrThrow({ where: { id: recordId } });
+    expect(stored.category).toBe("FINANCE");
+    expect(stored.occurredAt).toEqual(new Date("2027-03-01T00:00:00Z"));
+    expect(stored.titleEncrypted).not.toContain(input.title);
+    expect(stored.descriptionEncrypted).not.toContain(input.notes);
+    expect(stored.metadataEncrypted).not.toContain(String(input.targetAmount));
+    expect(stored.metadataEncrypted).not.toContain("targetAmount");
+    expect(encryption.decryptJson(stored.metadataEncrypted)).toEqual({
+      origin: "USER_ENTERED", kind: "SAVINGS_GOAL", financeVersion: 1,
+      finance: { ...input, currency: "NPR" },
+    });
+    expect((await service.list(userA.id)).records).toContainEqual({ ...input, currency: "NPR", id: recordId });
+    expect(await service.list(userB.id)).toEqual({ records: [], invalidRecordCount: 0 });
+    await expect(service.replace(userB.id, recordId, { ...input, currentAmount: 999 })).rejects.toBeInstanceOf(AuthorizationError);
+    await expect(service.delete(userB.id, recordId)).rejects.toBeInstanceOf(AuthorizationError);
+
+    const genericEvents = new LifeEventEntryService(database, encryption);
+    await expect(genericEvents.replace(userA.id, recordId, { title: "Bypass finance validation", occurredAt: "2027-03-01" })).rejects.toBeInstanceOf(AuthorizationError);
+    await expect(genericEvents.delete(userA.id, recordId)).rejects.toBeInstanceOf(AuthorizationError);
+    expect(await database.lifeEvent.findUniqueOrThrow({ where: { id: recordId } })).toEqual(stored);
+
+    const replacement = { ...input, title: "Synthetic revised emergency fund", currentAmount: 2_345.67 };
+    await service.replace(userA.id, recordId, replacement);
+    // A fresh service reads the persisted revision, rather than an in-memory draft.
+    expect((await new FinanceService(database, encryption).list(userA.id)).records)
+      .toContainEqual({ ...replacement, currency: "NPR", id: recordId });
+
+    // The JSON-export route includes active LifeEvents and decrypts this metadata.
+    const exportEvents = await database.lifeEvent.findMany({ where: { userId: userA.id, deletedAt: null } });
+    const exportedGoal = exportEvents.find((event) => event.id === recordId)!;
+    expect(encryption.decrypt(exportedGoal.titleEncrypted)).toBe(replacement.title);
+    expect(encryption.decryptJson(exportedGoal.metadataEncrypted)).toMatchObject({ finance: { ...replacement, currency: "NPR" } });
+
+    await service.delete(userA.id, recordId);
+    expect((await service.list(userA.id)).records.some((record) => record.id === recordId)).toBe(false);
+    expect(await database.lifeEvent.findFirst({ where: { id: recordId, userId: userA.id, deletedAt: null } })).toBeNull();
+    // Deletion is currently soft: active exports exclude it, and the stored row records that state.
+    expect((await database.lifeEvent.findUniqueOrThrow({ where: { id: recordId } })).deletedAt).toBeInstanceOf(Date);
+    const denials = await database.auditLog.findMany({ where: { resourceId: recordId, result: "DENIED" } });
+    expect(denials).toHaveLength(4);
+    expect(denials.every((audit) => JSON.stringify(audit.metadata) === "{}")).toBe(true);
+  });
+
+  it("recalculates monthly cash flow and additive budgets from persisted transaction changes", async () => {
+    const service = new FinanceService(database, encryption);
+    const income = { kind: "TRANSACTION", title: "Synthetic income", direction: "INCOME", category: "Salary", amount: 1_000.1, date: "2026-09-23" };
+    const expense = { kind: "TRANSACTION", title: "Synthetic groceries", direction: "EXPENSE", category: "Food", amount: 125.35, date: "2026-09-23" };
+    const budget = { kind: "BUDGET", title: "Synthetic food allowance", category: "FOOD", month: "2026-09", limit: 200 };
+    const created = [
+      await service.create(userA.id, income),
+      await service.create(userA.id, expense),
+      await service.create(userA.id, budget),
+      await service.create(userA.id, { ...budget, title: "Synthetic additional allowance", limit: 50 }),
+    ];
+    const persisted = await service.list(userA.id);
+    expect(persisted.invalidRecordCount).toBe(0);
+    expect(persisted.records).toHaveLength(4);
+    expect(summarizeFinanceMonth(persisted.records, "2026-09")).toMatchObject({
+      income: 1_000.1, expenses: 125.35, net: 874.75, budgetLimit: 250, budgetRemaining: 124.65,
+      categories: [{ category: "food", expenses: 125.35, budgetLimit: 250, budgetRemaining: 124.65, hasBudget: true }],
+    });
+
+    await service.replace(userA.id, created[1].recordId, { ...expense, amount: 175.45 });
+    expect(summarizeFinanceMonth((await service.list(userA.id)).records, "2026-09"))
+      .toMatchObject({ expenses: 175.45, net: 824.65, budgetRemaining: 74.55 });
+    await service.delete(userA.id, created[3].recordId);
+    expect(summarizeFinanceMonth((await service.list(userA.id)).records, "2026-09"))
+      .toMatchObject({ budgetLimit: 200, budgetRemaining: 24.55 });
+    expect((await service.list(userB.id)).records).toEqual([]);
   });
 });

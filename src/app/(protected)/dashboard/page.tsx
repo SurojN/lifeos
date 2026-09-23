@@ -25,8 +25,8 @@ const actions = [
   {
     href: "/finance",
     icon: Landmark,
-    title: "Explore a money goal",
-    text: "Compare projections with visible assumptions",
+    title: "Track your money goals",
+    text: "Review spending, budgets, and savings progress",
     tone: "sand",
   },
   {

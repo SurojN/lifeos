@@ -3,6 +3,7 @@ import { PageHero } from "@/components/page-hero";
 import { LifeEntryForm } from "@/components/life-entry-form";
 import { TimelineEventList } from "@/components/timeline-event-list";
 import { requirePageUser } from "@/lib/auth/adapter";
+import { toTimelineEvent } from "@/lib/timeline-event";
 import { listLifeEventsForUser } from "@/repositories/life-events";
 import { listSourceDocumentsForUser } from "@/repositories/source-documents";
 
@@ -27,29 +28,6 @@ export default async function Page() {
       </div>
     </details>
 
-    <TimelineEventList sourceDocuments={sourceDocuments} events={events.map((event) => {
-      const metadata = typeof event.metadata === "object" && event.metadata !== null && !Array.isArray(event.metadata) ? event.metadata : {};
-      const userEntered = "origin" in metadata && metadata.origin === "USER_ENTERED";
-      const medicalRecord = Boolean(event.medicalRecordId) || "medicalRecordId" in metadata;
-      const kind = "kind" in metadata && typeof metadata.kind === "string" ? metadata.kind : null;
-      return {
-        id: event.id,
-        category: event.category,
-        verificationStatus: event.verificationStatus,
-        title: event.title,
-        description: event.description,
-        occurredAt: event.occurredAt.toISOString(),
-        occurredAtLabel: kind === "APPOINTMENT"
-          ? `${event.occurredAt.toLocaleString("en-NP", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kathmandu" })} (Nepal time)`
-          : event.occurredAt.toLocaleDateString("en-NP", { dateStyle: "medium", timeZone: "Asia/Kathmandu" }),
-        sourceFileName: event.sourceFileName,
-        sourceDocumentId: event.sourceDocumentId,
-        sourceAvailable: event.sourceAvailable,
-        kind,
-        userEntered,
-        canEdit: userEntered && !medicalRecord,
-        medicalRecord,
-      };
-    })}/>
+    <TimelineEventList sourceDocuments={sourceDocuments} events={events.map(toTimelineEvent)}/>
   </div>;
 }

@@ -1,6 +1,5 @@
-import Link from "next/link";
 import { AppointmentPreparation } from "@/components/appointment-preparation";
-import { LifeEntryForm } from "@/components/life-entry-form";
+import { LifePlanWorkspace } from "@/components/life-plan-workspace";
 import { CalendarDays } from "lucide-react";
 import { PageHero } from "@/components/page-hero";
 import { requirePageUser } from "@/lib/auth/adapter";
@@ -23,12 +22,6 @@ export default async function Page() {
       medications: record.structuredData.medications.map((medication) => ({ name: medication.name, instructions: medication.instructions ?? "" })),
       sourceDocument: record.sourceDocument,
     }))}/>
-    <details className="rounded-2xl border bg-white/35 p-2">
-      <summary className="cursor-pointer rounded-xl px-4 py-3 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Save an appointment date</summary>
-      <div className="grid gap-3 pt-2">
-        <LifeEntryForm kind="APPOINTMENT" dateLabel="Date and time" descriptionLabel="Place, purpose, contact, and preparation" submitLabel="Save appointment"/>
-        <Link href="/timeline" className="px-4 pb-2 text-sm font-medium text-primary hover:underline">View saved dates in your timeline</Link>
-      </div>
-    </details>
+    <LifePlanWorkspace kind="APPOINTMENT" title="Your appointment plans" dateLabel="Date and time" descriptionLabel="Place, purpose, contact, and preparation" submitLabel="Save appointment"/>
   </div>;
 }

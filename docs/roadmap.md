@@ -14,7 +14,8 @@ The root application already has these foundations. They were not all introduced
 | Reviewed health history | Manual review creates a user-confirmed medical record and linked timeline event. Medicines can be copied from the source; corrections update the record and event together. Deletion currently retains soft-deleted metadata. |
 | Optional AI extraction | Explicitly consented JPEG/PNG extraction is available when server settings are configured. Suggestions need human review. PDF review remains manual. |
 | Search and Life Guide | Medical and timeline filters run in the loaded page. The Life Guide matches keywords, categories, and dates in saved facts; it is not a general conversational AI or a medical advisor. |
-| Appointments, trips, and other events | Forms save user-entered plans, memories, and goals to the timeline. An appointment entry is not a confirmed clinic booking; a trip entry does not reserve transport or accommodation. |
+| Appointments, trips, and other events | Source-linked plans, memories, and goals appear in their own sections and the timeline, with editing and soft deletion. An appointment entry is not a confirmed clinic booking; a trip entry does not reserve transport or accommodation. |
+| Budgets and savings | Finance saves manual income/expenses, monthly category budget allocations, and savings goals in encrypted event metadata. Monthly totals use integer paisa; zero-interest savings targets show their calculation assumptions. Users can update or remove entries. No bank data is collected automatically; balances and saved amounts are user entered. |
 | Export | A JSON download includes active records, document metadata, timeline events, and consent history. Original files are downloaded individually. This is not a complete backup or a restore workflow. |
 
 See [architecture](architecture.md), [development setup](development-setup.md), and [security model](security-model.md) for the existing implementation.
@@ -83,7 +84,7 @@ Store minimal action receipts and status references. Handle retries without dupl
 
 ## Phase 5 — Extend the same foundation to finance and learning
 
-Develop finance from user-owned income, savings, debt, investment, and goal information. Explain calculations with visible inputs, inflation, expected return, contribution changes, and time horizons. Keep projections separate from guarantees. Do not execute trades, move money, predict stocks, or introduce personalized regulated investment advice in the MVP.
+The manual budget and savings foundation is implemented: income/expenses, additive monthly allocations, goal balances, target dates, and planned monthly contributions. Extend it only with useful user-owned debt and investment information. Explain calculations with visible inputs, inflation, expected return, contribution changes, and time horizons. Keep projections separate from guarantees. Do not execute trades, move money, predict stocks, or introduce personalized regulated investment advice in the MVP.
 
 Develop learning around chosen goals, evidence of progress, useful resources, and a manageable next step. Avoid engagement mechanics that reward time in the app over the user's actual goal. Broader family or delegated access needs its own consent, narrow permissions, expiry/revocation, and isolation tests before release.
 

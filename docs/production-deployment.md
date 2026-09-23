@@ -24,7 +24,7 @@ vercel integration add neon
 vercel env pull .env.local --yes
 ```
 
-The repository currently has no Vercel CLI or linked project, so these account-owned steps have not been executed automatically.
+Use the account that owns the deployed LifeOS project. A local CLI installation or a connected Vercel account does not establish access to that project; verify the project and environment before pulling configuration or deploying.
 
 Create a private S3 bucket in a suitable region, enable Block Public Access, create a customer-managed KMS key, require TLS and SSE-KMS in the bucket policy, configure CORS only for the production LifeOS origin and `PUT`, and create a least-privilege server identity restricted to the LifeOS document prefix. Add its values from `.env.production.example` through Vercel Project → Settings → Environment Variables. Never place them in a tracked file.
 
@@ -44,11 +44,24 @@ After the first deployment, create a Clerk webhook for `https://YOUR_DOMAIN/api/
 npm run lint
 npm run typecheck
 npm test
-npm run build
+npm run build:release
 vercel deploy --prod
 ```
 
-Apply Prisma migrations to the production database as a controlled release step before directing traffic to schema-dependent code. `prisma.config.ts` uses `DATABASE_URL_UNPOOLED` for migrations when Neon provides it, while runtime traffic continues using pooled `DATABASE_URL`. Back up the database first and never use `prisma db push` against production.
+Apply Prisma migrations to the production database as a controlled release step before directing traffic to schema-dependent code:
+
+1. Create a protected backup and verify restoration on an isolated database.
+2. Review pending SQL, then run `npm run db:deploy` with the intended environment supplied securely.
+3. Run `npm run db:status`, then `npm run build:release`. Configure Vercel's **Build Command** as `npm run build:release` so pending or failed migrations block a schema-dependent release.
+4. Check sign-in and `/dashboard` in the deployed environment. An anonymous request should redirect to sign-in; it is not evidence of a signed-in dashboard failure.
+
+`build:release` checks migration state; it does not change the database. Plain `npm run build` remains available for compilation without database access. Never use `prisma db push` or reset a production database.
+
+`prisma.config.ts` prefers an explicitly supplied `DATABASE_URL_UNPOOLED` or `DATABASE_URL` before reading `.env.local` and `.env`. When neither is supplied by the process, it loads local configuration and prefers the unpooled URL. Runtime traffic uses pooled `DATABASE_URL`. If overriding a local test target, set **both** variables to that target to avoid accidentally retaining a production direct connection.
+
+### Dashboard schema mismatch
+
+Prisma `P2022` for `LifeEvent.medicalRecordId` means the running client expects a migration that the database lacks. The required migrations are `20260910110000_ai_extraction_foundation` and `20260915093000_link_medical_records_to_life_events`, after the initial foundation. Apply the repository migration history in order using the steps above; do not add an ad hoc column or replace existing records. The migration regression tests verify preservation of existing fields, explicit-denial consent defaults, optional medical links, and owner constraints.
 
 ## Optional integrations
 

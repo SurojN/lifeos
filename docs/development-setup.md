@@ -46,8 +46,9 @@ Generate the application-encryption key with `printf 'v1:'; openssl rand -base64
 Real authorization integration tests require a separate local test database and refuse non-local URLs:
 
 ```bash
-TEST_DATABASE_URL="postgresql://lifeos_test:password@127.0.0.1:5432/lifeos_test" \
-DATABASE_URL="$TEST_DATABASE_URL" npx prisma db push
+DATABASE_URL="postgresql://lifeos_test:password@127.0.0.1:5432/lifeos_test" \
+DATABASE_URL_UNPOOLED="postgresql://lifeos_test:password@127.0.0.1:5432/lifeos_test" \
+npm run db:deploy
 
 TEST_DATABASE_URL="postgresql://lifeos_test:password@127.0.0.1:5432/lifeos_test" \
 npm run test:integration

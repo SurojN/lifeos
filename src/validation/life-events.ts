@@ -14,6 +14,7 @@ export const userLifeEventSchema = z.object({
   sourceDocumentId: resourceIdSchema.optional(),
   metadata: z.record(z.string(), z.union([z.string().max(1_000), z.number().finite(), z.boolean(), z.null()]))
     .refine((metadata) => !("medicalRecordId" in metadata), "Medical records must use the medical review workflow.")
+    .refine((metadata) => !("financeVersion" in metadata), "Structured finance records must use the finance workflow.")
     .default({}),
 }).strict();
 

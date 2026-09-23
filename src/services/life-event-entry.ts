@@ -108,5 +108,5 @@ export class LifeEventEntryService {
 
 function isUserEnteredMetadata(value: unknown): boolean {
   return typeof value === "object" && value !== null && !Array.isArray(value)
-    && "origin" in value && value.origin === "USER_ENTERED" && !("medicalRecordId" in value);
+    && "origin" in value && value.origin === "USER_ENTERED" && !("medicalRecordId" in value) && !("financeVersion" in value);
 }
