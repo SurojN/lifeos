@@ -16,13 +16,21 @@ export async function processClerkWebhook(database: PrismaClient, externalEventI
   try {
     await database.webhookEvent.create({ data: { provider: "clerk", externalEventId, eventType: event.type, status: "RECEIVED" } });
   } catch {
-    const existing = await database.webhookEvent.findUnique({ where: { provider_externalEventId: { provider: "clerk", externalEventId } }, select: { id: true } });
-    if (existing) return { duplicate: true };
-    throw new Error("Webhook event could not be recorded.");
+    const existing = await database.webhookEvent.findUnique({ where: { provider_externalEventId: { provider: "clerk", externalEventId } }, select: { status: true } });
+    if (existing?.status === "PROCESSED") return { duplicate: true };
+    if (!existing) throw new Error("Webhook event could not be recorded.");
   }
 
   try {
-    await database.$transaction(async transaction => {
+    return await database.$transaction(async transaction => {
+      // This conditional write locks the ledger row until commit. Concurrent
+      // deliveries re-check the predicate after the first transaction finishes.
+      // FAILED/RECEIVED events must be retried, never acknowledged as processed.
+      const claimed = await transaction.webhookEvent.updateMany({
+        where: { provider: "clerk", externalEventId, status: { in: ["RECEIVED", "FAILED"] } },
+        data: { status: "RECEIVED", failureCode: null },
+      });
+      if (claimed.count !== 1) return { duplicate: true };
       let internalUserId: string | undefined;
       if (event.type === "user.deleted") {
         const existingUser = await transaction.user.findUnique({ where: { clerkUserId: event.data.id }, select: { id: true } });
@@ -35,8 +43,8 @@ export async function processClerkWebhook(database: PrismaClient, externalEventI
         internalUserId = user.id;
       }
       await transaction.webhookEvent.update({ where: { provider_externalEventId: { provider: "clerk", externalEventId } }, data: { status: "PROCESSED", processedAt: new Date(), userId: internalUserId } });
+      return { duplicate: false };
     });
-    return { duplicate: false };
   } catch {
     await database.webhookEvent.updateMany({ where: { provider: "clerk", externalEventId, status: "RECEIVED" }, data: { status: "FAILED", failureCode: "processing_failed" } }).catch(() => undefined);
     throw new Error("Webhook processing failed.");

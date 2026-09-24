@@ -39,6 +39,8 @@ npm test
 npm run build
 ```
 
+`npm run check` runs those four checks in sequence. On a memory-constrained machine, use `npm test -- --maxWorkers=2`. Start the compiled app with `npm start -- --hostname localhost --port 3100` and open `http://localhost:3100`; use the same hostname for the server and browser during Clerk development checks.
+
 Known local limitation: protected upload routes require valid Clerk, PostgreSQL, private storage, encryption, and internal user mapping configuration. Uploads are categorized by LifeOS section and remain quarantined until future malware/content validation. Downloads are authenticated server responses; public and presigned download URLs are forbidden.
 
 Generate the application-encryption key with `printf 'v1:'; openssl rand -base64 32`. Store it in a secret manager, never source control. See the security model before rotating it.

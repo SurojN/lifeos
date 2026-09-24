@@ -4,6 +4,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { documentUploadSchema } from "@/validation/documents";
 import { assertUserScopedStorageKey, generateStorageKey } from "./keys";
 import type { PrivateStorage, UploadInput } from "./types";
+import { readDocumentBytes, verifyDocumentBytes } from "./document-content";
 
 export class S3CompatiblePrivateStorage implements PrivateStorage {
   constructor(private readonly client: S3Client, private readonly bucket: string, private readonly kmsKeyId?: string) {}
@@ -19,11 +20,14 @@ export class S3CompatiblePrivateStorage implements PrivateStorage {
     return { storageKey, uploadUrl: await getSignedUrl(this.client, command, { expiresIn: 600 }), expiresAt, requiredHeaders };
   }
 
-  async confirmUpload(input: { userId: string; storageKey: string; expectedSizeBytes: number; expectedChecksum: string }) {
+  async confirmUpload(input: { userId: string; storageKey: string; expectedSizeBytes: number; expectedChecksum: string; expectedMimeType: string }) {
     assertUserScopedStorageKey(input.userId, input.storageKey);
     const result = await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: input.storageKey, ChecksumMode: "ENABLED" }));
-    const returnedChecksum = result.ChecksumSHA256 ? Buffer.from(result.ChecksumSHA256, "base64").toString("hex") : result.Metadata?.sha256;
-    if (result.ContentLength !== input.expectedSizeBytes || returnedChecksum !== input.expectedChecksum) throw new Error("Uploaded object verification failed.");
+    if (result.ContentLength !== input.expectedSizeBytes || result.ContentType !== input.expectedMimeType) throw new Error("Uploaded object verification failed.");
+    const object = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: input.storageKey, IfMatch: result.ETag }));
+    const bytes = await readDocumentBytes(object.Body, input.expectedSizeBytes);
+    if (bytes.byteLength !== input.expectedSizeBytes) throw new Error("Uploaded object verification failed.");
+    verifyDocumentBytes(bytes, input.expectedMimeType, input.expectedChecksum);
     return { storageKey: input.storageKey, sizeBytes: input.expectedSizeBytes, checksum: input.expectedChecksum };
   }
 

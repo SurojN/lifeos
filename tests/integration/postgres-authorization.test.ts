@@ -12,10 +12,12 @@ import { processClerkWebhook } from "@/services/clerk-webhooks";
 import { FinanceService } from "@/services/finance";
 import { LifeEventEntryService } from "@/services/life-event-entry";
 import { summarizeFinanceMonth } from "@/lib/finance";
+import { MedicalConfirmationService } from "@/services/medical-confirmation";
+import { MedicalRecordManagementService } from "@/services/medical-record-management";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 const parsedTestDatabaseUrl = testDatabaseUrl ? new URL(testDatabaseUrl) : undefined;
-if (!parsedTestDatabaseUrl || !["localhost", "127.0.0.1"].includes(parsedTestDatabaseUrl.hostname) || !parsedTestDatabaseUrl.pathname.toLowerCase().includes("test")) {
+if (!parsedTestDatabaseUrl || !["postgres:", "postgresql:"].includes(parsedTestDatabaseUrl.protocol) || !["localhost", "127.0.0.1"].includes(parsedTestDatabaseUrl.hostname) || !parsedTestDatabaseUrl.pathname.toLowerCase().includes("test") || parsedTestDatabaseUrl.searchParams.has("host") || parsedTestDatabaseUrl.searchParams.has("hostaddr")) {
   throw new Error("TEST_DATABASE_URL must point to a dedicated local PostgreSQL database.");
 }
 
@@ -107,12 +109,46 @@ describe("real PostgreSQL tenant authorization", () => {
     await expect(service.confirm(userA.id, authorization.uploadId)).rejects.toBeInstanceOf(AuthorizationError);
   });
 
+  it("confirms, corrects, and removes a sourced medical history without crossing owners", async () => {
+    const source = await database.sourceDocument.create({ data: { userId: userA.id, originalFileNameEncrypted: encryption.encrypt("synthetic-report.pdf"), storageKey: `users/${userA.id}/documents/medical-flow.pdf`, mimeType: "application/pdf", sizeBytes: 100, checksum: "c".repeat(64), category: "HEALTH", status: "QUARANTINED" } });
+    const confirmation = new MedicalConfirmationService(database, encryption);
+    const input = { sourceDocumentId: source.id, recordType: "LAB_REPORT", eventDate: "2026-09-23", title: "Synthetic reviewed report", medications: [] };
+    await expect(confirmation.confirm(userB.id, input)).rejects.toBeInstanceOf(AuthorizationError);
+    const result = await confirmation.confirm(userA.id, input);
+    const record = await database.medicalRecord.findUniqueOrThrow({ where: { id: result.recordId } });
+    expect(record).toMatchObject({ userId: userA.id, sourceDocumentId: source.id, verificationStatus: "USER_CONFIRMED" });
+    expect(encryption.decrypt(record.titleEncrypted)).toBe(input.title);
+    expect(await database.lifeEvent.findUniqueOrThrow({ where: { id: result.lifeEventId } })).toMatchObject({ medicalRecordId: record.id, sourceDocumentId: source.id, userId: userA.id });
+    const management = new MedicalRecordManagementService(database, encryption);
+    await management.replace(userA.id, record.id, { recordType: input.recordType, eventDate: input.eventDate, title: "Corrected synthetic report", medications: [] });
+    expect(encryption.decrypt((await database.lifeEvent.findUniqueOrThrow({ where: { id: result.lifeEventId } })).titleEncrypted)).toBe("Corrected synthetic report");
+    await expect(management.delete(userB.id, record.id)).rejects.toBeInstanceOf(AuthorizationError);
+    await management.delete(userA.id, record.id);
+    expect((await database.lifeEvent.findUniqueOrThrow({ where: { id: result.lifeEventId } })).deletedAt).toBeInstanceOf(Date);
+    expect((await database.sourceDocument.findUniqueOrThrow({ where: { id: source.id } })).deletedAt).toBeNull();
+  });
+
   it("persists Clerk replay protection and does not apply the same event twice", async () => {
     const event = { type: "user.created" as const, data: { id: "integration-webhook-user", first_name: "Webhook", email_addresses: [{ id: "email-1", email_address: "webhook@example.test" }], primary_email_address_id: "email-1" } };
     expect(await processClerkWebhook(database, "svix-integration-1", event)).toEqual({ duplicate: false });
     expect(await processClerkWebhook(database, "svix-integration-1", event)).toEqual({ duplicate: true });
     expect(await database.webhookEvent.count({ where: { provider: "clerk", externalEventId: "svix-integration-1", status: "PROCESSED" } })).toBe(1);
     expect(await database.user.count({ where: { clerkUserId: "integration-webhook-user" } })).toBe(1);
+  });
+
+  it.each(["FAILED", "RECEIVED"] as const)("retries a %s webhook instead of losing identity synchronization", async (status) => {
+    const externalEventId = `svix-retry-${status}`;
+    await database.webhookEvent.create({ data: { provider: "clerk", externalEventId, eventType: "user.updated", status, failureCode: "processing_failed" } });
+    const event = { type: "user.updated" as const, data: { id: `integration-retry-${status}`, first_name: "Recovered" } };
+    expect(await processClerkWebhook(database, externalEventId, event)).toEqual({ duplicate: false });
+    expect(await database.webhookEvent.findUniqueOrThrow({ where: { provider_externalEventId: { provider: "clerk", externalEventId } } })).toMatchObject({ status: "PROCESSED", failureCode: null });
+  });
+
+  it("processes simultaneous deliveries exactly once", async () => {
+    const event = { type: "user.created" as const, data: { id: "integration-concurrent-webhook", first_name: "Concurrent" } };
+    const results = await Promise.all([processClerkWebhook(database, "svix-concurrent", event), processClerkWebhook(database, "svix-concurrent", event)]);
+    expect(results.filter(result => !result.duplicate)).toHaveLength(1);
+    expect(results.filter(result => result.duplicate)).toHaveLength(1);
   });
 
   it("persists encrypted savings goals through correction/export/deletion while enforcing owner and workflow boundaries", async () => {

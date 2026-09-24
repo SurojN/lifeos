@@ -1,6 +1,6 @@
 import "server-only";
 import type { PrismaClient } from "@/generated/prisma/client";
-import { AuthorizationError } from "@/lib/security/errors";
+import { AuthorizationError, UploadStillActiveError } from "@/lib/security/errors";
 import type { VersionedEncryption } from "@/lib/security/encryption";
 import type { PrivateStorage } from "@/lib/storage/types";
 import { documentUploadSchema } from "@/validation/documents";
@@ -24,7 +24,7 @@ export class DocumentUploadService {
   async confirm(userId: string, rawUploadId: string) {
     const uploadId = resourceIdSchema.parse(rawUploadId);
     const upload = await this.database.documentUpload.findFirst({ where: { id: uploadId, userId }, include: { sourceDocument: true } });
-    if (!upload || upload.status !== "AUTHORIZED") return this.deny(userId, uploadId, "upload_not_authorized");
+    if (!upload || upload.status !== "AUTHORIZED" || upload.sourceDocument.deletedAt || upload.sourceDocument.status !== "PENDING_UPLOAD") return this.deny(userId, uploadId, "upload_not_authorized");
     if (upload.expiresAt <= new Date()) {
       await this.database.$transaction(async transaction => {
         await transaction.documentUpload.updateMany({ where: { id: uploadId, userId, status: "AUTHORIZED" }, data: { status: "EXPIRED" } });
@@ -32,11 +32,12 @@ export class DocumentUploadService {
       });
       throw new AuthorizationError();
     }
-    await this.storage.confirmUpload({ userId, storageKey: upload.sourceDocument.storageKey, expectedSizeBytes: upload.expectedSizeBytes, expectedChecksum: upload.expectedChecksum });
+    await this.storage.confirmUpload({ userId, storageKey: upload.sourceDocument.storageKey, expectedSizeBytes: upload.expectedSizeBytes, expectedChecksum: upload.expectedChecksum, expectedMimeType: upload.expectedMimeType });
     await this.database.$transaction(async transaction => {
       const updated = await transaction.documentUpload.updateMany({ where: { id: uploadId, userId, status: "AUTHORIZED" }, data: { status: "VERIFIED", completedAt: new Date() } });
       if (updated.count !== 1) throw new AuthorizationError();
-      await transaction.sourceDocument.update({ where: { id_userId: { id: upload.sourceDocumentId, userId } }, data: { status: "QUARANTINED", uploadedAt: new Date() } });
+      const source = await transaction.sourceDocument.updateMany({ where: { id: upload.sourceDocumentId, userId, deletedAt: null, status: "PENDING_UPLOAD" }, data: { status: "QUARANTINED", uploadedAt: new Date() } });
+      if (source.count !== 1) throw new AuthorizationError();
       await transaction.auditLog.create({ data: { userId, actorUserId: userId, action: "document_upload.confirm", resourceType: "DocumentUpload", resourceId: uploadId, result: "SUCCESS", metadata: {} } });
     });
     return { documentId: upload.sourceDocumentId, status: "QUARANTINED" as const };
@@ -48,17 +49,26 @@ export class DocumentUploadService {
       where: { id: documentId, userId, deletedAt: null },
       select: { id: true, storageKey: true, status: true },
     });
-    if (!document) return this.deny(userId, documentId, "document_not_found");
-
-    if (document.status !== "PENDING_UPLOAD") {
-      await this.storage.deletePrivateObject({ userId, storageKey: document.storageKey });
+    if (!document) {
+      await this.database.auditLog.create({ data: { userId, actorUserId: userId, action: "source_document.delete", resourceType: "SourceDocument", resourceId: documentId, result: "DENIED", metadata: {} } });
+      throw new AuthorizationError();
     }
+
+    // A signed PUT remains usable even after confirmation. Deleting while it is
+    // live would allow the original bytes to be recreated after a successful delete.
+    const activeUpload = await this.database.documentUpload.findFirst({
+      where: { sourceDocumentId: documentId, userId, expiresAt: { gt: new Date() } }, select: { id: true },
+    });
+    if (activeUpload) throw new UploadStillActiveError();
+    // PUT may have succeeded even when the browser never sent confirmation.
+    await this.storage.deletePrivateObject({ userId, storageKey: document.storageKey });
     await this.database.$transaction(async transaction => {
       const updated = await transaction.sourceDocument.updateMany({
         where: { id: document.id, userId, deletedAt: null },
         data: { status: "DELETED", deletedAt: new Date() },
       });
       if (updated.count !== 1) throw new AuthorizationError();
+      await transaction.documentUpload.updateMany({ where: { sourceDocumentId: document.id, userId, status: { in: ["CREATED", "AUTHORIZED", "UPLOADED"] } }, data: { status: "EXPIRED" } });
       await transaction.auditLog.create({ data: { userId, actorUserId: userId, action: "source_document.delete", resourceType: "SourceDocument", resourceId: document.id, result: "SUCCESS", metadata: { previousStatus: document.status } } });
     });
     return { documentId: document.id, status: "DELETED" as const };

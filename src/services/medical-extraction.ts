@@ -7,14 +7,9 @@ import type { VersionedEncryption } from "@/lib/security/encryption";
 import type { PrivateStorage } from "@/lib/storage/types";
 import { resourceIdSchema } from "@/validation/common";
 import { z } from "zod";
+import { readDocumentBytes } from "@/lib/storage/document-content";
 
 const extractionRequestSchema = z.object({ sourceDocumentId: z.string().trim().min(1).max(64), consent: z.literal(true) }).strict();
-
-async function toBytes(body: unknown): Promise<Uint8Array> {
-  if (body instanceof Uint8Array) return body;
-  if (body && typeof (body as { transformTo?: () => Promise<Uint8Array> }).transformTo === "function") return (body as { transformTo: () => Promise<Uint8Array> }).transformTo();
-  throw new Error("The private document body could not be read.");
-}
 
 export class MedicalExtractionService {
   constructor(private readonly database: PrismaClient, private readonly storage: PrivateStorage, private readonly encryption: VersionedEncryption) {}
@@ -38,7 +33,7 @@ export class MedicalExtractionService {
 
     try {
       const object = await this.storage.getPrivateObject({ userId, storageKey: source.storageKey });
-      const extraction = medicalExtractionSchema.parse(await provider.extractMedicalDocument({ bytes: await toBytes(object.body), mimeType: source.mimeType, fileName: this.encryption.decrypt(source.originalFileNameEncrypted) }));
+      const extraction = medicalExtractionSchema.parse(await provider.extractMedicalDocument({ bytes: await readDocumentBytes(object.body), mimeType: source.mimeType, fileName: this.encryption.decrypt(source.originalFileNameEncrypted) }));
       await this.database.$transaction(async transaction => {
         await transaction.extractionJob.update({ where: { id: job.id }, data: { status: "NEEDS_REVIEW", resultEncrypted: this.encryption.encryptJson(extraction), completedAt: new Date() } });
         await transaction.auditLog.create({ data: { userId, actorUserId: userId, action: "medical_extraction.complete", resourceType: "ExtractionJob", resourceId: job.id, result: "SUCCESS", metadata: { sourceDocumentId: source.id } } });
@@ -46,7 +41,7 @@ export class MedicalExtractionService {
       return { jobId: job.id, extraction };
     } catch (error) {
       await this.database.$transaction(async transaction => {
-        await transaction.extractionJob.update({ where: { id: job.id }, data: { status: "FAILED", failureReason: error instanceof Error ? error.message.slice(0, 200) : "provider_error", completedAt: new Date() } });
+        await transaction.extractionJob.update({ where: { id: job.id }, data: { status: "FAILED", failureReason: "extraction_failed", completedAt: new Date() } });
         await transaction.auditLog.create({ data: { userId, actorUserId: userId, action: "medical_extraction.complete", resourceType: "ExtractionJob", resourceId: job.id, result: "FAILED", metadata: { sourceDocumentId: source.id } } });
       });
       throw error;

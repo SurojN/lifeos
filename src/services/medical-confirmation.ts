@@ -17,6 +17,11 @@ export class MedicalConfirmationService {
 
     return this.database.$transaction(async (transaction) => {
       const now = new Date();
+      const available = await transaction.sourceDocument.updateMany({
+        where: { id: source.id, userId, category: "HEALTH", deletedAt: null, status: { in: ["QUARANTINED", "AVAILABLE"] } },
+        data: { verificationStatus: "USER_CONFIRMED" },
+      });
+      if (available.count !== 1) throw new AuthorizationError();
       if (input.extractionJobId) {
         const extraction = await transaction.extractionJob.updateMany({
           where: {
@@ -57,7 +62,6 @@ export class MedicalConfirmationService {
           metadataEncrypted: this.encryption.encryptJson({ medicalRecordId: record.id, recordType: input.recordType }),
         },
       });
-      await transaction.sourceDocument.update({ where: { id_userId: { id: source.id, userId } }, data: { verificationStatus: "USER_CONFIRMED" } });
       await transaction.auditLog.create({ data: { userId, actorUserId: userId, action: "medical_record.confirm", resourceType: "MedicalRecord", resourceId: record.id, result: "SUCCESS", metadata: { lifeEventId: event.id, sourceDocumentId: source.id } } });
       return { recordId: record.id, lifeEventId: event.id };
     });

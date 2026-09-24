@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { createHash } from "node:crypto";
+import { Readable } from "node:stream";
 import { generateStorageKey, assertUserScopedStorageKey } from "@/lib/storage/keys";
 import { S3CompatiblePrivateStorage } from "@/lib/storage/s3-compatible";
 import { S3Client } from "@aws-sdk/client-s3";
@@ -6,6 +8,30 @@ import { S3Client } from "@aws-sdk/client-s3";
 const userId = "clh1234567890abcdefghijklm";
 
 describe("private storage boundaries", () => {
+  it("verifies downloaded bytes instead of trusting client-supplied checksum metadata", async () => {
+    const bytes = Buffer.from("%PDF-1.7 synthetic");
+    const checksum = createHash("sha256").update(bytes).digest("hex");
+    const client = new S3Client({ region: "us-east-1" });
+    const send = vi.spyOn(client, "send");
+    send.mockResolvedValueOnce({ ContentLength: bytes.length, ContentType: "application/pdf", ETag: '"version"', Metadata: { sha256: checksum } } as never);
+    send.mockResolvedValueOnce({ Body: Readable.from([bytes]) } as never);
+    const storage = new S3CompatiblePrivateStorage(client, "private-bucket");
+    const input = { userId, storageKey: `users/${userId}/documents/test.pdf`, expectedMimeType: "application/pdf", expectedSizeBytes: bytes.length, expectedChecksum: checksum };
+    await expect(storage.confirmUpload(input)).resolves.toMatchObject({ checksum });
+    expect(send.mock.calls[1][0].input).toMatchObject({ IfMatch: '"version"' });
+
+    send.mockResolvedValueOnce({ ContentLength: bytes.length, ContentType: "application/pdf", Metadata: { sha256: checksum } } as never);
+    send.mockResolvedValueOnce({ Body: Readable.from([Buffer.alloc(bytes.length)]) } as never);
+    await expect(storage.confirmUpload(input)).rejects.toThrow("verification failed");
+  });
+
+  it("rejects storage MIME mismatches before downloading content", async () => {
+    const client = new S3Client({ region: "us-east-1" });
+    const send = vi.spyOn(client, "send").mockResolvedValueOnce({ ContentLength: 10, ContentType: "text/html" } as never);
+    const storage = new S3CompatiblePrivateStorage(client, "private-bucket");
+    await expect(storage.confirmUpload({ userId, storageKey: `users/${userId}/documents/test.pdf`, expectedMimeType: "application/pdf", expectedSizeBytes: 10, expectedChecksum: "a".repeat(64) })).rejects.toThrow();
+    expect(send).toHaveBeenCalledTimes(1);
+  });
   it("generates user-scoped keys and ignores arbitrary path content", () => {
     expect(generateStorageKey(userId, "../../private/report.pdf", () => "generated-id")).toBe(`users/${userId}/documents/generated-id.pdf`);
   });

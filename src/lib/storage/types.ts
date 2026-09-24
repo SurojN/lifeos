@@ -13,7 +13,7 @@ export interface PrivateObject { body: unknown; mimeType: string; sizeBytes: num
 
 export interface PrivateStorage {
   createUploadAuthorization(input: UploadInput): Promise<UploadAuthorization>;
-  confirmUpload(input: { userId: string; storageKey: string; expectedSizeBytes: number; expectedChecksum: string }): Promise<UploadConfirmation>;
+  confirmUpload(input: { userId: string; storageKey: string; expectedSizeBytes: number; expectedChecksum: string; expectedMimeType: string }): Promise<UploadConfirmation>;
   getPrivateObject(input: { userId: string; storageKey: string }): Promise<PrivateObject>;
   deletePrivateObject(input: { userId: string; storageKey: string }): Promise<void>;
 }

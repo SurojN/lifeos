@@ -4,6 +4,8 @@ LifeOS is a privacy-first system for verified, source-linked personal informatio
 
 ## Status
 
+See the [2026-09-24 release review](docs/release-review-2026-09-24.md) for hardening changes, verification, and outstanding release gates. Permanent account erasure and the signed-in staging acceptance flow must be completed before treating this foundation as ready for sensitive production records.
+
 The first usable workflow now supports private medical-document upload, explicit field review, a user-confirmed medical record, a source-linked life event, private in-page history search, correction/deletion of confirmed records, and a private Life Guide that answers from confirmed or user-entered facts. Optional one-time AI suggestions are available for JPEG and PNG sources only after explicit consent; manual review remains the default and works without AI. LifeOS does not diagnose, provide medical interpretation, or offer financial advice.
 
 See [development setup](docs/development-setup.md), [production deployment](docs/production-deployment.md), [architecture](docs/architecture.md), [security model](docs/security-model.md), and the [commercial strategy](docs/commercial-strategy.md).

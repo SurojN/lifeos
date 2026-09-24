@@ -20,9 +20,14 @@ export class AuditFailureError extends Error {
   constructor() { super("The operation could not be recorded safely."); this.name = "AuditFailureError"; }
 }
 
+export class UploadStillActiveError extends Error {
+  readonly status = 409;
+  constructor() { super("This document still has an active upload link. Try deleting it again in 10 minutes."); this.name = "UploadStillActiveError"; }
+}
+
 export function safeErrorResponse(error: unknown): Response {
   if (error instanceof ZodError) return Response.json({ error: "Invalid request." }, { status: 400 });
-  if (error instanceof AuthenticationError || error instanceof InternalUserMappingError || error instanceof AuthorizationError || error instanceof AuditFailureError) {
+  if (error instanceof AuthenticationError || error instanceof InternalUserMappingError || error instanceof AuthorizationError || error instanceof AuditFailureError || error instanceof UploadStillActiveError) {
     return Response.json({ error: error.message }, { status: error.status });
   }
   return Response.json({ error: "The request could not be completed." }, { status: 500 });
